@@ -58,15 +58,33 @@ Take your learning logs wherever you go.
 
 ## ⚡ Setup & Installation
 
-### Option A: Local Developer Load (Chrome)
-1. **Clone** or download this repository:
-   ```bash
-   git clone https://github.com/samya818/youtube-AI-extension.git
-   ```
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer mode** (toggle in the top-right corner).
-4. Click **Load unpacked** (top-left) and select the `youtube-ai-tutor` folder inside this project.
-5. Pin the **YouTube AI Tutor** extension in your browser bar!
+> [!NOTE]
+> Since this extension is not yet published on the official extension stores (Chrome Web Store / Edge Add-ons) yet, you can easily install it manually in Chrome or Edge in just a few clicks.
+
+### 📥 Step 1: Download & Extract
+1. Download the extension ZIP file from **[Google Drive](https://drive.google.com/file/d/1Jr_JCSRAtfsdO3WoFPQoUgeTaoad5Xan/view?usp=drive_link)**.
+2. **Extract** (unzip) the file somewhere on your computer (e.g., your Desktop).
+
+### 🧩 Step 2: Open Extensions Menu
+1. Click the **Extensions icon** (puzzle piece 🧩) right next to your browser's search bar.
+2. Click **Manage extensions** (*Gérer les extensions*).
+
+| 1. Click Extensions Icon | 2. Click Manage Extensions |
+| --- | --- |
+| ![Click Extension Icon](steps/step1_click_extension_icon.png) | ![Manage Extensions](steps/step2_manage_extensions.png) |
+
+### ⚙️ Step 3: Enable Developer Mode
+1. Toggle the **Developer mode** switch in the top-right corner to **ON** (*Activer le mode développeur*).
+
+![Enable Developer Mode](steps/step3_enable_developer_mode.png)
+
+### 📁 Step 4: Load the Unpacked Extension
+1. Click **Load unpacked** (*Charger l'extension décompressée*) in the top-left corner.
+2. Select the extracted `youtube-ai-tutor` folder.
+
+![Load Unpacked Extension](steps/step4_load_unpacked.png)
+
+🎉 **Done!** The extension is now installed. Pin it to your browser toolbar so you can open it at any time while watching YouTube.
 
 ---
 
