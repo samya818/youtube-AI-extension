@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="../lib/katex/katex.min.css">
+</head>
+<body>
+  <div class="tabs">
+    <button class="tab active" data-panel="chat">💬 Chat</button>
+    <button class="tab" data-panel="notebooks">📚 Notebooks</button>
+    <button class="tab" data-panel="active-notebook">📖 Active</button>
+    <button class="tab" data-panel="settings">⚙ Settings</button>
+  </div>
+
+  <div id="chat-panel" class="panel active">
+    <div class="chat-scroll">
+      <div id="no-capture-hint" class="hint">
+        Open a YouTube video — the current frame will be captured automatically on send.
+        Use "Annotate" to select the transcript context (interval + preview).
+      </div>
+      <img id="capture-preview" class="capture-preview" style="display:none;" alt="Capture">
+      <div class="capture-actions">
+        <button id="annotate-btn" class="secondary-btn" type="button">Annotate (T-X / T0 / T+X)</button>
+        <button id="refresh-transcript-btn" class="secondary-btn" type="button" title="Ignore cache and reload the transcript">↻ Force refresh transcript</button>
+      </div>
+      <button id="recapture-btn" class="link-btn recapture-btn" type="button" style="display:none;">↻ Recapture</button>
+      <div class="level-select">
+        <select id="explanation-level">
+          <option value="ELI5">ELI5 (5 years old)</option>
+          <option value="Lycée">High School</option>
+          <option value="Licence" selected>University / Bachelor</option>
+          <option value="Expert">Expert</option>
+        </select>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+    </div>
+    <button id="quick-note-btn" class="floating-note-btn" type="button" title="Create a note linked to capture">📝</button>
+    <div class="chat-footer">
+      <div id="model-indicator" class="model-indicator">Model used: —</div>
+      <div class="input-area">
+        <input type="text" id="question-input" placeholder="Ask your question about this frame...">
+        <button id="send-btn">Send</button>
+      </div>
+      <button id="clear-overlay-btn" class="secondary-btn">Clear overlays</button>
+    </div>
+  </div>
+
+  <div id="notebooks-panel" class="panel">
+    <div class="panel-header">
+      <h3>My Notebooks</h3>
+      <button id="create-notebook-btn" class="primary-btn">➕ New Notebook</button>
+    </div>
+    <input type="text" id="notebook-search" class="search-box" placeholder="Search notebooks...">
+    <div id="notebook-list" class="notebook-list"></div>
+  </div>
+
+  <div id="active-notebook-panel" class="panel">
+    <div class="panel-header active-notebook-header">
+      <input type="text" id="active-notebook-title" class="title-input" placeholder="Notebook Title">
+      <div class="panel-actions">
+        <select id="export-format" class="mini-select">
+          <option value="markdown">Markdown</option>
+          <option value="json">JSON</option>
+          <option value="html">HTML (Web Page)</option>
+          <option value="pdf">PDF</option>
+        </select>
+        <button id="export-notebook-btn" class="primary-btn">📥 Export</button>
+        <button id="back-to-notebooks-btn" class="secondary-btn compact">⬅ Back</button>
+      </div>
+    </div>
+    <div id="active-notebook-entries" class="timeline"></div>
+  </div>
+
+  <div id="settings-panel" class="panel">
+    <section class="settings-inline" style="border-top: none; margin-top: 0; padding-top: 0;">
+      <h4>API & AI Settings</h4>
+      <div class="setting-row">
+        <label>Active Provider:</label>
+        <select id="provider-selector">
+          <option value="gemini">Gemini (Google)</option>
+          <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="mistral">Mistral</option>
+        </select>
+      </div>
+      <div id="key-input-group" class="setting-row">
+        <label for="api-key-input">API Key for <span id="current-provider-label">Gemini</span>:</label>
+        <input type="password" id="api-key-input" placeholder="Paste your key here..." autocomplete="new-password">
+        <button id="save-key-btn" class="primary-btn" style="width: 100%;">Save this key</button>
+        <div id="key-status" class="status" style="display:none;"></div>
+      </div>
+      <div class="setting-row">
+        <label for="model-select">Model</label>
+        <select id="model-select"></select>
+      </div>
+      <div id="saved-keys-list" class="saved-keys-list"></div>
+    </section>
+    
+    <section class="about-section" style="margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #cbd5e1; text-align: center; line-height: 1.6; flex-shrink: 0;">
+      <p style="margin-bottom: 4px;">Created by <strong>Samya Loukili</strong> — Send me a nice message if u find it useful 🎀</p>
+      <p>
+        <a href="https://github.com/samya818" target="_blank" style="color: #8ab4ff; text-decoration: none; margin-right: 8px;">GitHub</a> • 
+        <a href="mailto:samyaloukili2@gmail.com" style="color: #8ab4ff; text-decoration: none; margin-left: 8px;">Contact & Feedback</a>
+      </p>
+    </section>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div id="modal-card" class="modal-card"></div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="../lib/katex/katex.min.js"></script>
+  <script src="../lib/katex/auto-render.min.js"></script>
+  <script src="../lib/utils.js"></script>
+  <script src="../lib/message-render.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
