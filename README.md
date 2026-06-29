@@ -56,6 +56,19 @@ Take your learning logs wherever you go.
 
 ---
 
+## 🔑 AI Providers & Keys
+No middleman, no subscription, no hidden markups. You use your own API keys directly.
+
+![API Keys Setup](images/image7.png)
+
+* **Google Gemini:** (Recommended) Generous **free tier** available!
+  1. Go to [Google AI Studio](https://aistudio.google.com/).
+  2. Click **Get API Key** and generate your key.
+  3. Paste it into the extension's settings.
+* **Other Supported Providers:** OpenAI (GPT-4o), Anthropic (Claude), Mistral AI, and OpenRouter (for 100+ models).
+
+---
+
 ## ⚡ Setup & Installation
 
 > [!NOTE]
@@ -85,19 +98,6 @@ Take your learning logs wherever you go.
 ![Load Unpacked Extension](steps/step4_load_unpacked.png)
 
 🎉 **Done!** The extension is now installed. Pin it to your browser toolbar so you can open it at any time while watching YouTube.
-
----
-
-## 🔑 AI Providers & Keys
-No middleman, no subscription, no hidden markups. You use your own API keys directly.
-
-![API Keys Setup](images/image7.png)
-
-* **Google Gemini:** (Recommended) Generous **free tier** available!
-  1. Go to [Google AI Studio](https://aistudio.google.com/).
-  2. Click **Get API Key** and generate your key.
-  3. Paste it into the extension's settings.
-* **Other Supported Providers:** OpenAI (GPT-4o), Anthropic (Claude), Mistral AI, and OpenRouter (for 100+ models).
 
 ---
 
