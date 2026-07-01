@@ -75,7 +75,7 @@ No middleman, no subscription, no hidden markups. You use your own API keys dire
 > Since this extension is not yet published on the official extension stores (Chrome Web Store / Edge Add-ons) yet, you can easily install it manually in Chrome or Edge in just a few clicks.
 
 ### 📥 Step 1: Download & Extract
-1. Download the extension ZIP file from **[Google Drive](https://drive.google.com/file/d/1Jr_JCSRAtfsdO3WoFPQoUgeTaoad5Xan/view?usp=drive_link)**.
+1. Download the extension ZIP file from **[Google Drive](https://drive.google.com/file/d/1OTkhhOuJFCIT5F8d2_b8ECzDfYYkKlCw/view?usp=sharing)**.
 2. **Extract** (unzip) the file somewhere on your computer (e.g., your Desktop).
 
 ### 🧩 Step 2: Open Extensions Menu
