@@ -213,21 +213,6 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
     console.error('[YTAITutor] sidePanel setup failed:', err);
   });
-
-  // Local-only usage counters (no network tracking)
-  try {
-    chrome.storage.local
-      .get('usageStats')
-      .then((res) => {
-        const usage = res.usageStats || { installs: 0, opens: 0, lastUpdatedAt: 0 };
-        usage.installs = (usage.installs || 0) + 1;
-        usage.lastUpdatedAt = Date.now();
-        return chrome.storage.local.set({ usageStats: usage });
-      })
-      .catch(() => {});
-  } catch {
-    // ignore
-  }
 });
 
 async function ensureDbReady() {
@@ -465,137 +450,11 @@ async function setCachedTranscriptLines(videoId, lines, source) {
  * @returns {string}
  */
 function linesToFullText(lines) {
-  const raw = lines.map((line) => line.text).join(' ').replace(/\s+/g, ' ').trim();
-  return cleanTranscriptForLLM(raw);
-}
-
-/**
- * TranscriptDeduplicator v3
- * Supprime les répétitions consécutives exactes dans les transcriptions
- * Économie typique : 60-70% de tokens
- */
-class TranscriptDeduplicator {
-  constructor(options = {}) {
-    this.minBlockLen = options.minBlockLen || 3;
-    this.minBlockLen3x = options.minBlockLen3x || 2;
-    this.minRepeatForDedup = options.minRepeatForDedup || 2;
-  }
-
-  clean(text) {
-    if (!text || typeof text !== 'string') return '';
-
-    const tokens = this._tokenize(text);
-    const deduped = this._deduplicateConsecutive(tokens);
-    return this._detokenize(deduped);
-  }
-
-  _tokenize(text) {
-    return text
-      .replace(/\s*>>\s*/g, ' §SEP§ ')
-      .replace(/\s*\[(.+?)\]\s*/g, ' §MARK§[$1]§MARK§ ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ');
-  }
-
-  _detokenize(tokens) {
-    return tokens
-      .join(' ')
-      .replace(/ §SEP§ /g, ' >> ')
-      .replace(/ §SEP§/g, ' >>')
-      .replace(/§SEP§ /g, '>> ')
-      .replace(/§SEP§/g, '>>')
-      .replace(/ §MARK§/g, ' ')
-      .replace(/ §MARK§ /g, ' ')
-      .replace(/§MARK§/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  _hasMarker(token) {
-    return token.includes('§SEP§') || token.includes('§MARK§');
-  }
-
-  _deduplicateConsecutive(tokens) {
-    const result = [];
-    let i = 0;
-
-    while (i < tokens.length) {
-      let bestLen = 0;
-      let bestCount = 1;
-
-      for (let seqLen = Math.min(50, tokens.length - i); seqLen > 0; seqLen--) {
-        const seq = tokens.slice(i, i + seqLen);
-        let count = 1;
-        let pos = i + seqLen;
-
-        while (pos + seqLen <= tokens.length) {
-          const nextSeq = tokens.slice(pos, pos + seqLen);
-          if (seq.length === nextSeq.length && seq.every((t, idx) => t === nextSeq[idx])) {
-            count++;
-            pos += seqLen;
-          } else {
-            break;
-          }
-        }
-
-        if (count > bestCount) {
-          bestLen = seqLen;
-          bestCount = count;
-        }
-      }
-
-      const seq = bestLen > 0 ? tokens.slice(i, i + bestLen) : [tokens[i]];
-      const hasMarker = seq.some((t) => this._hasMarker(t));
-
-      if (bestCount >= 3) {
-        result.push(...seq);
-        i += bestLen * bestCount;
-      } else if (bestCount >= 2) {
-        if (bestLen >= this.minBlockLen) {
-          result.push(...seq);
-          i += bestLen * bestCount;
-        } else if (bestLen === 2 && hasMarker) {
-          result.push(...seq);
-          i += bestLen * bestCount;
-        } else {
-          result.push(tokens[i]);
-          i += 1;
-        }
-      } else {
-        result.push(tokens[i]);
-        i += 1;
-      }
-    }
-
-    return result;
-  }
-}
-
-const transcriptDeduplicator = new TranscriptDeduplicator({
-  minBlockLen: 3,
-  minBlockLen3x: 2,
-  minRepeatForDedup: 2
-});
-
-function cleanTranscriptForLLM(text) {
-  if (!text || typeof text !== 'string') return '';
-
-  // Heuristique: si très court, on évite d’ajouter du coût.
-  const trimmed = text.trim();
-  if (trimmed.length < 40) return trimmed;
-
-  try {
-    return transcriptDeduplicator.clean(trimmed);
-  } catch (e) {
-    // En cas d’erreur, on ne bloque pas le flux.
-    return trimmed;
-  }
+  return lines.map((line) => line.text).join(' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
  * Builds the transcript text sent to Gemini (windowed excerpt or full when requested).
-
  * @param {Array<{start: number, duration: number, text: string}>} lines
  * @param {number} currentTime
  * @param {number} before
@@ -821,15 +680,12 @@ function getTranscriptWindow(lines, currentTime, before = 60, after = 30) {
   }
 
   const centerTime = resolveTranscriptWindowCenter(lines, currentTime);
-  const raw = lines
+  return lines
     .filter((line) => line.start >= centerTime - before && line.start <= centerTime + after)
     .map((line) => line.text)
     .join(' ')
     .trim();
-
-  return cleanTranscriptForLLM(raw);
 }
-
 
 /**
  * Simplified local fallback when the external API is unavailable.
@@ -1193,17 +1049,7 @@ Les coordonnées overlay sont en ratio (0-1) par rapport à la taille de la vid�
  * @param {boolean} [params.transcriptIsFull]
  * @returns {string}
  */
-function buildVideoContextBlock({
-  videoId,
-  videoTitle,
-  currentTime,
-  transcriptWindow,
-  transcriptSections = null,
-  annotated,
-  selectedFrame,
-  transcriptIsFull = false,
-  transcriptMode = 'local'
-}) {
+function buildVideoContextBlock({ videoId, videoTitle, currentTime, transcriptWindow, transcriptSections = null, annotated, selectedFrame, transcriptIsFull = false }) {
   const lines = [
     '=== Contexte vidéo ===',
     `Titre : ${videoTitle || 'Inconnu'}`
@@ -1231,10 +1077,7 @@ function buildVideoContextBlock({
   const localText = transcriptSections?.localText?.trim() || transcriptWindow?.trim();
   const globalText = transcriptSections?.globalText?.trim();
 
-  const includeLocal = transcriptMode === 'local' || transcriptMode === 'global-local';
-  const includeGlobal = transcriptMode === 'global' || transcriptMode === 'global-local';
-
-  if (includeLocal && localText) {
+  if (localText) {
     const prefix = transcriptIsFull ? '[CONTEXTE LOCAL — TRANSCRIPTION COMPLÈTE]' : '[CONTEXTE LOCAL]';
     lines.push(
       '',
@@ -1245,17 +1088,14 @@ function buildVideoContextBlock({
     );
   }
 
-  if (includeGlobal && globalText) {
-    const shouldSkipIfSame = localText && globalText === localText;
-    if (!shouldSkipIfSame) {
-      lines.push(
-        '',
-        '[TRANSCRIPTION GLOBALE DE LA VIDÉO]',
-        '--- DEBUT TRANSCRIPTION GLOBALE ---',
-        globalText,
-        '--- FIN TRANSCRIPTION GLOBALE ---'
-      );
-    }
+  if (globalText && globalText !== localText) {
+    lines.push(
+      '',
+      '[TRANSCRIPTION GLOBALE DE LA VIDÉO]',
+      '--- DEBUT TRANSCRIPTION GLOBALE ---',
+      globalText,
+      '--- FIN TRANSCRIPTION GLOBALE ---'
+    );
   }
 
   if (!localText && !globalText) {
@@ -1315,22 +1155,9 @@ function compareFrameOrder(a, b, t0Time) {
 async function buildGeminiFrameImages(captureMeta, imageDataUrl) {
   await ensureDbReady();
   const t0Time = captureMeta.currentTime ?? 0;
-
-  // New frame send modes (controlled by popup / annotation editor)
-  // - none: send 0 images
-  // - t0_only: send only T0
-  // - three_frames: send T-X + T0 + T+X (best effort)
-  const frameSendMode = captureMeta?.frameSendMode || captureMeta?.framesSendMode || 'contextual';
-
-  if (frameSendMode === 'none') {
-    return [];
-  }
-
-
   const frameImages = [];
 
   if (captureMeta.frames?.length && dbReady) {
-
     for (const frame of captureMeta.frames) {
       const isT0 = frame.label === 'T0' || /^T0\b/.test(frame.label || '');
       let frameDataUrl = null;
@@ -1871,23 +1698,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     try {
       switch (request.action) {
-        case 'bumpUsageOpens': {
-          const stored = await chrome.storage.local.get('usageStats');
-          const usage = stored.usageStats || { installs: 0, opens: 0, lastUpdatedAt: 0 };
-          usage.opens = (usage.opens || 0) + 1;
-          usage.lastUpdatedAt = Date.now();
-          await chrome.storage.local.set({ usageStats: usage });
-          sendResponse({ ok: true });
-          break;
-        }
-
-        case 'getUsageStats': {
-          const stored = await chrome.storage.local.get('usageStats');
-          const usage = stored.usageStats || { installs: 0, opens: 0, lastUpdatedAt: 0 };
-          sendResponse({ installs: usage.installs || 0, opens: usage.opens || 0, lastUpdatedAt: usage.lastUpdatedAt || 0 });
-          break;
-        }
-
         case 'storeAnnotatedCapture': {
           const {
             videoId,
@@ -2223,8 +2033,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             transcriptSections,
             transcriptIsFull: transcriptResult.isFull,
             annotated: captureMeta.annotated ?? false,
-            selectedFrame: captureMeta.selectedFrame || null,
-            transcriptMode: finalTranscriptMode
+            selectedFrame: captureMeta.selectedFrame || null
           });
 
           const frameImages = await buildGeminiFrameImages(captureMeta, imageDataUrl);
@@ -2451,23 +2260,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             afterSec = TRANSCRIPT_DEFAULT_AFTER_SEC,
             transcriptPreferFull = false,
             transcriptMode = 'local',
-            transcriptLang = null,
-            frameSendMode = null
+            transcriptLang = null
           } = request;
 
           if (!videoId) {
-            sendResponse({
-              charCount: 0,
-              estimatedTokens: 0,
-              beforeSec,
-              afterSec,
-              isFull: false,
-              previewText: '',
-              localTokens: 0,
-              globalTokens: 0,
-              transcriptMode,
-              frameEstimate: { imageCount: 0, imageTokens: 0 }
-            });
+            sendResponse({ charCount: 0, estimatedTokens: 0, beforeSec, afterSec, isFull: false, previewText: '' });
             break;
           }
 
@@ -2478,18 +2275,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           const lines = await getCachedOrFetchTranscript(videoId, tab?.id || null, lang);
 
           if (!lines?.length) {
-            sendResponse({
-              charCount: 0,
-              estimatedTokens: 0,
-              beforeSec,
-              afterSec,
-              isFull: false,
-              previewText: '',
-              localTokens: 0,
-              globalTokens: 0,
-              transcriptMode,
-              frameEstimate: { imageCount: 0, imageTokens: 0 }
-            });
+            sendResponse({ charCount: 0, estimatedTokens: 0, beforeSec, afterSec, isFull: false, previewText: '' });
             break;
           }
 
@@ -2526,21 +2312,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             isFull = false;
           }
 
-          // Image estimate: on aligne avec l'UI via frameSendMode (0 / 1 / 3).
-          let imageCount = 0;
-          if (frameSendMode === 'none') {
-            imageCount = 0;
-          } else if (frameSendMode === 't0-only') {
-            imageCount = 1;
-          } else {
-            // contextual / autre => 3 frames au max
-            imageCount = 3;
-          }
-
-          // Heuristique identique à l'ancienne UI: 900 tok par image.
-          // L'objectif principal ici est la correction du cas 0 image et la cohérence.
-          const imageTokens = imageCount * 900;
-
           sendResponse({
             charCount,
             estimatedTokens,
@@ -2551,11 +2322,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
             previewText,
             localTokens: sections.localTokens,
             globalTokens: sections.globalTokens,
-            transcriptMode,
-            frameEstimate: {
-              imageCount,
-              imageTokens
-            }
+            transcriptMode
           });
           break;
         }

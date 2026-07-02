@@ -110,28 +110,10 @@
       await loadSettings();
       await loadNotebooks();
       setupEventListeners();
-
-      // Local-only usage counters (no network tracking)
-      await bumpUsageOpenAndRender();
     } catch (err) {
       console.error('[YTAITutor Popup] Init error:', err);
     }
   });
-
-  async function bumpUsageOpenAndRender() {
-    try {
-      await sendMessage({ action: 'bumpUsageOpens' });
-      const usage = await sendMessage({ action: 'getUsageStats' });
-      if (!usage) return;
-
-      const installsEl = document.getElementById('usage-installs');
-      const opensEl = document.getElementById('usage-opens');
-      if (installsEl) installsEl.textContent = usage.installs ?? 0;
-      if (opensEl) opensEl.textContent = usage.opens ?? 0;
-    } catch {
-      // never break the UI
-    }
-  }
 
   function setupCaptureStorageListener() {
     chrome.storage.onChanged.addListener((changes, area) => {

@@ -13,66 +13,6 @@ const ANNOTATION_TRANSCRIPT_PRESETS = {
  * Full-screen panel to select a frame, annotate it, and submit to the tutor.
  */
 class AnnotationPanel {
-  setUiPreparing(force = false) {
-    if (!this.panel || (!this.uiPreparing && !force)) {
-      // still allow if panel exists
-    }
-    this.uiPreparing = true;
-    this.uiReady = false;
-
-    const statusTitle = this.statusTitle;
-    const statusSubtitle = this.statusSubtitle;
-    if (statusTitle) statusTitle.textContent = 'Preparing…';
-    if (statusSubtitle) statusSubtitle.textContent = 'Captures + transcription';
-
-    const spinner = this.statusSpinner;
-    if (spinner) spinner.style.opacity = '0.95';
-
-    // lock interactions that can confuse the user during async estimation
-    const disabled = true;
-    this.panel.querySelectorAll('button, input, select').forEach((el) => {
-      if (!el) return;
-      if (el.id === 'ytaitutor-close-panel') return;
-      // Don't disable the text input focus while typing during final state; but during preparing it's ok.
-      el.disabled = disabled;
-    });
-  }
-
-  setUiReady() {
-    this.uiPreparing = false;
-    this.uiReady = true;
-
-    const statusTitle = this.statusTitle;
-    const statusSubtitle = this.statusSubtitle;
-    if (statusTitle) {
-      statusTitle.textContent = 'Ready';
-      statusTitle.style.color = '#81c784';
-    }
-    if (statusSubtitle) statusSubtitle.textContent = 'You can annotate and submit';
-
-    const spinner = this.statusSpinner;
-    if (spinner) spinner.style.opacity = '0';
-
-    // re-enable interactions
-    this.panel?.querySelectorAll('button, input, select').forEach((el) => {
-      if (!el) return;
-      if (el.id === 'ytaitutor-close-panel') return;
-      el.disabled = false;
-    });
-
-    // fade-out status bar
-    if (this.statusBar) {
-      this.statusBar.style.opacity = '0';
-      setTimeout(() => {
-        try {
-          this.statusBar?.remove();
-        } catch {
-          /* ignore */
-        }
-      }, 350);
-    }
-  }
-
   /**
    * @param {Array<{label: string, dataUrl: string, time: number}>} frames
    * @param {string} videoId
@@ -105,17 +45,7 @@ class AnnotationPanel {
     this.previewDebounceTimer = null;
 
     this.build();
-    this.setUiPreparing(true);
-    this.updateTranscriptPreview().finally(() => {
-      this.setUiPreparing(false);
-      this.setUiReady();
-      // Ensure text inputs etc. are usable after async update.
-      try {
-        this.editor?.redraw?.();
-      } catch {
-        /* ignore */
-      }
-    });
+    this.updateTranscriptPreview();
   }
 
   /**
@@ -123,11 +53,6 @@ class AnnotationPanel {
    */
   build() {
     const overlay = document.createElement('div');
-
-    // UI state helpers (setUiPreparing/setUiReady will mutate this.panel)
-    this.uiPreparing = true;
-    this.uiReady = false;
-
     overlay.id = 'ytaitutor-annotation-overlay';
     overlay.style.cssText = `
       position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -211,8 +136,7 @@ class AnnotationPanel {
     frameSendSelect.style.cssText = 'padding: 6px 8px; border-radius: 4px; background: #1a1a1a; color: #fff; border: 1px solid #444; font-size: 12px;';
     [
       ['contextual', 'T-X / T0 / T+X'],
-      ['t0-only', 'Only T0 (default)'],
-      ['none', 'Send no frames (0 images)']
+      ['t0-only', 'Only T0 (default)']
     ].forEach(([value, label]) => {
       const opt = document.createElement('option');
       opt.value = value;
@@ -438,66 +362,9 @@ class AnnotationPanel {
     container.appendChild(textStyleBar);
     container.appendChild(contextSection);
     container.appendChild(actions);
-
-    // Pretty loading / ready state layer
-    const statusBar = document.createElement('div');
-    statusBar.id = 'ytaitutor-annotation-status';
-    statusBar.style.cssText = `
-      position: absolute; left: 20px; right: 20px; bottom: 20px;
-      background: rgba(17,17,17,0.65);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-      color: #cfd8dc;
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px;
-      backdrop-filter: blur(6px);
-      transition: opacity 200ms ease, transform 200ms ease;
-    `;
-
-    const statusLeft = document.createElement('div');
-    statusLeft.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-
-    const statusTitle = document.createElement('div');
-    statusTitle.id = 'ytaitutor-annotation-status-title';
-    statusTitle.style.cssText = 'font-weight: 700; font-size: 13px; color: #fff;';
-    statusTitle.textContent = 'Preparing…';
-
-    const statusSubtitle = document.createElement('div');
-    statusSubtitle.id = 'ytaitutor-annotation-status-subtitle';
-    statusSubtitle.style.cssText = 'font-size: 12px; color: #9aa7b0;';
-    statusSubtitle.textContent = 'Captures + transcription';
-
-    statusLeft.appendChild(statusTitle);
-    statusLeft.appendChild(statusSubtitle);
-
-    const statusSpinner = document.createElement('div');
-    statusSpinner.id = 'ytaitutor-annotation-status-spinner';
-    statusSpinner.style.cssText = `
-      width: 30px; height: 30px; border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.18);
-      border-top-color: #4285f4;
-      animation: ytaitutor-spin 0.9s linear infinite;
-      flex: 0 0 auto;
-      opacity: 0.95;
-    `;
-
-    const styleTag = document.createElement('style');
-    styleTag.textContent = `@keyframes ytaitutor-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`;
-
-    statusBar.appendChild(statusLeft);
-    statusBar.appendChild(statusSpinner);
-
-    overlay.appendChild(styleTag);
     overlay.appendChild(container);
-    overlay.appendChild(statusBar);
     document.body.appendChild(overlay);
     this.panel = overlay;
-    this.statusBar = statusBar;
-    this.statusTitle = statusTitle;
-    this.statusSubtitle = statusSubtitle;
-    this.statusSpinner = statusSpinner;
-
 
     this.editor = new AnnotationEditor(canvas);
     this.selectFrame(1);
@@ -775,32 +642,17 @@ class AnnotationPanel {
    * Fetches and displays the transcript window for the current interval.
    */
   async updateTranscriptPreview() {
-    // Prevent multiple overlapping previews from clobbering the UI.
-    // (We keep it simple: last request wins.)
-    const requestId = (this._previewReqId = (this._previewReqId || 0) + 1);
-    const applyIfLatest = (fn) => {
-      if (this._previewReqId === requestId) fn();
-    };
     const tokenEl = this.panel?.querySelector('#ytaitutor-token-estimate');
     const previewEl = this.panel?.querySelector('#ytaitutor-transcript-preview-text');
 
-    applyIfLatest(() => {
-      if (tokenEl) {
-        tokenEl.textContent = 'estimating…';
-        tokenEl.style.color = '#90caf9';
-        tokenEl.style.background = '#1a1a2a';
-      }
-      if (previewEl) {
-        previewEl.textContent = 'Loading transcript…';
-      }
-
-      // update bottom status message to be more “plausible”
-      if (this.statusSubtitle) {
-        this.statusSubtitle.textContent = 'Transcription & token estimate…';
-      }
-    });
-
-
+    if (tokenEl) {
+      tokenEl.textContent = 'calculating…';
+      tokenEl.style.color = '#90caf9';
+      tokenEl.style.background = '#1a1a2a';
+    }
+    if (previewEl) {
+      previewEl.textContent = 'Loading…';
+    }
 
     if (!this.videoId) {
       if (previewEl) {
@@ -810,67 +662,59 @@ class AnnotationPanel {
     }
 
     try {
-      const frameCount = this.frameSendMode === 'none'
-        ? 0
-        : this.frameSendMode === 't0-only'
-          ? 1
-          : this.frames.length;
-
       const result = await this.sendRuntimeMessage({
-        
-      
         action: 'previewTranscriptWindow',
         videoId: this.videoId,
         currentTime: this.currentTime,
         beforeSec: this.beforeSec,
         afterSec: this.afterSec,
         transcriptPreferFull: this.transcriptPreferFull,
-        transcriptMode: this.transcriptMode,
-        frameSendMode: this.frameSendMode,
-        frameCount,
         transcriptLang: this.transcriptData?.language || 'fr'
       });
 
       const charCount = result?.charCount || 0;
-      const localTokens = result?.localTokens || 0;
-      const globalTokens = result?.globalTokens || 0;
-      const frameEst = result?.frameEstimate;
-
-      // frameEstimate: { imageCount, imageTokens, tokensByMode?: {local, global} }
-      const imageCount = frameEst?.imageCount ?? 0;
-      const imageTokens = frameEst?.imageTokens ?? 0;
-
+      const localTokens = Math.max(result?.localTokens || 0, Math.ceil((result?.charCount || 0) / 4));
+      const globalTokens = Math.max(result?.globalTokens || 0, Math.ceil((result?.charCount || 0) / 4));
+      const shouldIncludeContext = this.frameSendMode !== 't0-only';
+      const frameCount = this.frames.filter((frame) => {
+        if (!shouldIncludeContext) {
+          return frame.label === 'T0' || /^T0\b/.test(frame.label || '');
+        }
+        return true;
+      }).length;
+      const imageTokenEstimate = frameCount * 900;
       const fullSuffix = result?.isFull ? ' — full' : '';
 
       let transcriptLabel = 'local extract';
       let transcriptTokens = localTokens;
-      let transcriptDetail = `local (~${localTokens} tok)`;
+      let detailText = `local extract (~${localTokens} tok)`;
 
       if (this.transcriptMode === 'global') {
         transcriptLabel = 'global transcript';
         transcriptTokens = globalTokens;
-        transcriptDetail = `global (~${globalTokens} tok)`;
+        detailText = `global transcript (~${globalTokens} tok)`;
       } else if (this.transcriptMode === 'global-local') {
         transcriptLabel = 'local + global';
         transcriptTokens = localTokens + globalTokens + 200;
-        transcriptDetail = `local (~${localTokens} tok) + global (~${globalTokens} tok)`;
+        detailText = `local (~${localTokens} tok) + global (~${globalTokens} tok)`;
       }
 
-      const totalTokens = transcriptTokens + imageTokens;
+      const totalTokens = transcriptTokens + imageTokenEstimate;
 
       if (tokenEl) {
-        tokenEl.textContent = `~${totalTokens} estimated tokens (${transcriptDetail}, ${imageCount} image${imageCount > 1 ? 's' : ''}, ${charCount} chars${fullSuffix})`;
-        tokenEl.style.color = result?.isFull ? '#81c784' : '#90caf9';
-        tokenEl.style.background = result?.isFull ? '#1b3a1b' : '#1a1a2a';
+        tokenEl.textContent = `~${totalTokens} estimated tokens (${detailText}, ${frameCount} image${frameCount > 1 ? 's' : ''}, ${charCount} chars${fullSuffix})`;
+        if (result?.isFull) {
+          tokenEl.style.color = '#81c784';
+          tokenEl.style.background = '#1b3a1b';
+        } else {
+          tokenEl.style.color = '#90caf9';
+          tokenEl.style.background = '#1a1a2a';
+        }
       }
 
       if (previewEl) {
         previewEl.textContent = result?.previewText?.trim()
           || '(Transcript unavailable for this interval — AI will still be able to use the images)';
-      }
-
-      if (this.statusSubtitle) {
-        this.statusSubtitle.textContent = 'Prêt à annoter';
       }
     } catch (err) {
       console.warn('[YTAITutor] Preview transcript annotation:', err);
