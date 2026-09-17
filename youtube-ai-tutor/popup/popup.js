@@ -1000,7 +1000,7 @@
 
       const lines = [];
       const now = new Date().toLocaleString();
-      lines.push(`# AI Tutor Chat Export`);
+      lines.push(`# ClarifyTube - Study Notes`);
       lines.push(`_Exported on ${now}_`);
       lines.push('');
 
@@ -1019,7 +1019,7 @@
           if (msg.role === 'user') {
             lines.push(`## 🧑 You`);
           } else {
-            lines.push(`## 🤖 AI Tutor`);
+            lines.push(`## 🤖 ClarifyTube`);
           }
           lines.push('');
           if (msg.text) lines.push(msg.text);
@@ -1770,7 +1770,7 @@
 
     const label = document.createElement('div');
     label.className = 'message-label';
-    label.textContent = role === 'user' ? 'You' : 'AI Tutor';
+    label.textContent = role === 'user' ? 'You' : 'ClarifyTube';
     div.appendChild(label);
 
     const content = document.createElement('div');
@@ -2047,7 +2047,7 @@
 
     const label = document.createElement('div');
     label.className = 'message-label';
-    label.textContent = 'AI Tutor';
+    label.textContent = 'ClarifyTube';
     div.appendChild(label);
 
     const content = document.createElement('div');

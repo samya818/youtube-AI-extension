@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube AI Tutor",
+  "name": "ClarifyTube — AI Study Tutor for YouTube",
   "version": "1.1.6",
-  "description": "Pose des questions sur n'importe quel moment d'une vidéo YouTube avec l'aide de l'IA",
+  "description": "Clarify any moment in YouTube lectures with interactive AI, visual annotations, and smart revision notes.",
   "author": "Samya Loukili",
   "permissions": [
     "storage",
@@ -25,7 +25,7 @@
     "https://mbwapniarmmouuuyhkyf.supabase.co/*"
   ],
   "action": {
-    "default_title": "YouTube AI Tutor",
+    "default_title": "ClarifyTube",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -66,7 +66,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "youtube-ai-extension@samya818.github.io",
+      "id": "clarifytube@samya818.github.io",
       "data_collection_permissions": {
         "required": ["none"]
       }

@@ -1,5 +1,5 @@
-# 🎓 YouTube AI Tutor — Your Smart Visual Study Buddy for YouTube
-> Turn any YouTube video into your interactive AI study companion. Ask questions, annotate frames, attach homework photos, organize revision notebooks, and export illustrated study guides — 100% Free & Privacy-Friendly.
+# 🎓 ClarifyTube — Smart AI Study Companion for YouTube
+> Turn any YouTube video into your interactive AI study companion. Clarify complex moments, annotate frames, attach homework photos, organize revision notebooks, and export illustrated study guides — 100% Free & Privacy-Friendly.
 
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-FF7139?style=for-the-badge&logo=firefox-browser&logoColor=white)](https://addons.mozilla.org)
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://github.com/samya818/youtube-AI-extension)
@@ -8,13 +8,13 @@
 
 ---
 
-## 🌟 What is YouTube AI Tutor?
+## 🌟 What is ClarifyTube?
 
 Tired of pausing complex YouTube tutorials, switching between tabs, copying code by hand, or getting stuck on diagrams? 
 
-**YouTube AI Tutor** gives you an instant AI tutor right beside your video. It observes the **video frames**, reads the **spoken transcript**, sees your **drawn annotations**, and can even analyze **photos of your textbook or homework sheets** uploaded directly from your computer!
+**ClarifyTube** gives you an instant AI study companion right beside your video. It observes the **video frames**, reads the **spoken transcript**, sees your **drawn annotations**, and can even analyze **photos of your textbook or homework sheets** uploaded directly from your computer!
 
-![YouTube AI Tutor - Full Interface Demo](images/image4.png)
+![ClarifyTube - Full Interface Demo](images/image4.png)
 
 ---
 
