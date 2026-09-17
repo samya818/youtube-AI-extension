@@ -1,117 +1,95 @@
-# 🎓 YouTube AI Tutor — Your Smart Study Buddy for YouTube
-> Turn any YouTube video into your personal AI-powered tutor. Ask questions, annotate frames, take notes, and export everything in one place—100% Free & Private.
+# 🎓 YouTube AI Tutor — Your Smart Visual Study Buddy for YouTube
+> Turn any YouTube video into your interactive AI study companion. Ask questions, annotate frames, attach homework photos, organize revision notebooks, and export illustrated study guides — 100% Free & Privacy-Friendly.
 
-[![Live Demo](https://img.shields.io/badge/Intro%20Website-Visit-6366f1?style=for-the-badge)](https://kcbluojkxicfs.kimi.page/)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-FF7139?style=for-the-badge&logo=firefox-browser&logoColor=white)](https://addons.mozilla.org)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://github.com/samya818/youtube-AI-extension)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg?style=for-the-badge)](LICENSE)
-[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-ffb800?style=for-the-badge)](https://github.com/samya818/youtube-AI-extension)
+[![Live Demo](https://img.shields.io/badge/Intro%20Website-Visit-6366f1?style=for-the-badge)](https://kcbluojkxicfs.kimi.page/)
 
 ---
 
-## 🌟 Overview
+## 🌟 What is YouTube AI Tutor?
 
-**YouTube AI Tutor** is a powerful Chrome extension designed to supercharge your learning on YouTube. Tired of pausing tutorials, switching tabs, and losing your train of thought? The extension integrates a native Chrome side panel where an AI assistant analyzes video frames, transcriptions, and your own hand-drawn annotations to answer your questions in real time.
+Tired of pausing complex YouTube tutorials, switching between tabs, copying code by hand, or getting stuck on diagrams? 
 
-![YouTube AI Tutor - Full Interface Demo](images/image4.png)
+**YouTube AI Tutor** gives you an instant AI tutor right beside your video. It observes the **video frames**, reads the **spoken transcript**, sees your **drawn annotations**, and can even analyze **photos of your textbook or homework sheets** uploaded directly from your computer!
 
 ---
 
 ## 🚀 Key Features
 
-### 🎥 1. Multi-Frame Smart Capture
-Capture a temporal sequence of frames (`T-X`, `T0`, `T+X`) rather than just a single freeze-frame. This allows the AI to understand motion, code changes, and dynamic diagrams.
-* **Interval Adjustments:** Set your preferred time-window between frames.
-* **Canvas Annotations:** Draw lines, arrows, circles, and write text directly on the video frame.
-* **Burn-in Merging:** Your drawings are merged directly into the image sent to the AI.
+### 🔍 1. Interactive Spotlight Onboarding Guide
+New to the extension? A built-in, **interactive 7-step walkthrough** highlights buttons with a pulsating spotlight ring and guides you step-by-step with practical *"Try it now!"* actions. Replay it anytime from the Settings tab.
 
-![Multi-Frame Capture](images/image3.png)
+### 📸 2. Smart Frame Capture & Canvas Annotations
+* **Temporal Multi-Frame (`T-X`, `T0`, `T+X`)**: Capture progressions, movements, or algorithm animations rather than just a static image.
+* **Canvas Drawing Tools**: Draw arrows, circle formulas, or write notes directly onto the video snapshot before asking the AI.
+* **Non-intrusive UI**: Opens in Chrome Side Panel or Firefox popup without obstructing the YouTube player.
 
-### 💻 2. Native Chrome Side Panel
-Study side-by-side with your video. The extension uses Chrome's native Side Panel API so it never overlays or interrupts the video player.
-* **Live transcription preview:** See the exact text context.
-* **One-click synchronization:** Instantly recapture frames at the current timestamp.
-* **Educational Levels:** Adjust the response style from *ELI5 (Explain Like I'm 5)* to *Expert*.
+### 📎 3. Ask Questions & Attach Local PC Photos
+* **Video + Document Analysis**: Click the small **`📎` (paperclip)** button in the chat input to attach photos of homework, handwritten notes, or textbook problems.
+* **Dual Vision Context**: The AI answers your question considering both the YouTube video context and your uploaded image together!
 
-![Native Chrome Side Panel](images/image2.png)
+### 📌 4. Revision Memos (0 Tokens) vs. AI Vision
+* **Send to AI (`📎`)**: Sends your image to the LLM model for deep visual understanding.
+* **Revision Memos (`📌 Épingler capture` & `🖼 Photo mémo`)**: Save visual references directly into your chat log at **0 token cost**. They are preserved locally and appear in your PDF/Markdown exports!
 
-### 🤖 3. Context-Aware AI Responses
-The AI receives three critical layers of context: the **video frames**, the **transcription text**, and your **visual annotations**.
-* **Precise explanations:** The AI knows exactly what you are pointing to.
-* **LaTeX formatting:** Formulas, math, and scientific notations are rendered beautifully.
+### 💬 5. Resume Past Discussions ("Continuer")
+Never lose a train of thought! Open any saved notebook entry and click **`💬 Continuer`** to instantly restore the full previous discussion and ask follow-up questions right where you left off.
 
-![Context-Aware AI](images/image1.png)
+### 📓 6. Multi-Notebook Organization
+* Organize notes by course, subject, or playlist.
+* Search and filter through past discussions in real-time.
+* 100% offline persistence with browser IndexedDB.
 
-### 📔 4. Multi-Notebook Organization
-Save your knowledge and organize it by course, subject, or project.
-* **Color-Coded Notebooks:** Easily differentiate topics.
-* **Dual Entries:** Keep track of both AI chat history and your personal markdown notes.
-* **Local Persistence:** Data is securely saved using IndexedDB directly in your browser.
-
-![Notebook Organization](images/image5.png)
-
-### 📥 5. Universal Exports
-Take your learning logs wherever you go.
-* Export your entire notebook as **Markdown** (compatible with Obsidian, Notion, GitHub), **PDF** (styled with syntax-highlighted code), **HTML**, or **JSON**.
-
-![Export Options](images/image6.png)
+### 🖨 7. Illustrated PDF & Markdown Export
+* Export clean, beautifully formatted study sheets with syntax-highlighted code, rendered LaTeX math formulas, and all your visual memo photos included.
 
 ---
 
-## 🔑 AI Providers & Keys
-No middleman, no subscription, no hidden markups. You use your own API keys directly.
+## 🤖 Supported AI Models & Free Setup
 
-![API Keys Setup](images/image7.png)
+YouTube AI Tutor connects directly to AI providers without markups or subscriptions. You use your own API keys:
 
-* **Google Gemini:** (Recommended) Generous **free tier** available!
-  1. Go to [Google AI Studio](https://aistudio.google.com/).
-  2. Click **Get API Key** and generate your key.
-  3. Paste it into the extension's settings.
-* **Other Supported Providers:** OpenAI (GPT-4o), Anthropic (Claude), Mistral AI, and OpenRouter (for 100+ models).
+* **Google Gemini (Recommended — 100% Free)**:
+  1. Open [Google AI Studio](https://aistudio.google.com/app/apikey).
+  2. Click **"Create API key"** (free, generous quota).
+  3. Paste it into the extension Settings and click **Save Key**.
+* **Other Providers Supported**: OpenAI (GPT-4o, GPT-4o-mini), Anthropic (Claude 3.5 Sonnet), Mistral AI, and OpenRouter.
 
 ---
 
-## ⚡ Setup & Installation
+## ⚡ Installation Guide
 
-> [!NOTE]
-> Since this extension is not yet published on the official extension stores (Chrome Web Store / Edge Add-ons) yet, you can easily install it manually in Chrome or Edge in just a few clicks.
+### 🦊 Firefox (Recommended & Easiest)
+1. Download or clone this repository.
+2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
+3. Click **"Load Temporary Add-on..."** (*Charger un module temporaire*).
+4. Select `youtube-ai-tutor/manifest.json`.
+5. Open any YouTube video and click the **YouTube AI Tutor** icon in your toolbar!
 
-### 📥 Step 1: Download & Extract
-1. Download the extension ZIP file from **[Google Drive](https://drive.google.com/file/d/1OTkhhOuJFCIT5F8d2_b8ECzDfYYkKlCw/view?usp=sharing)**.
-2. **Extract** (unzip) the file somewhere on your computer (e.g., your Desktop).
-
-### 🧩 Step 2: Open Extensions Menu
-1. Click the **Extensions icon** (puzzle piece 🧩) right next to your browser's search bar.
-2. Click **Manage extensions** (*Gérer les extensions*).
-
-| 1. Click Extensions Icon | 2. Click Manage Extensions |
-| --- | --- |
-| ![Click Extension Icon](steps/step1_click_extension_icon.png) | ![Manage Extensions](steps/step2_manage_extensions.png) |
-
-### ⚙️ Step 3: Enable Developer Mode
-1. Toggle the **Developer mode** switch in the top-right corner to **ON** (*Activer le mode développeur*).
-
-![Enable Developer Mode](steps/step3_enable_developer_mode.png)
-
-### 📁 Step 4: Load the Unpacked Extension
-1. Click **Load unpacked** (*Charger l'extension décompressée*) in the top-left corner.
-2. Select the extracted `youtube-ai-tutor` folder.
-
-![Load Unpacked Extension](steps/step4_load_unpacked.png)
-
-🎉 **Done!** The extension is now installed. Pin it to your browser toolbar so you can open it at any time while watching YouTube.
+### 🌐 Google Chrome / Brave / Edge
+1. Download or clone this repository.
+2. Open Chrome and go to `chrome://extensions`.
+3. Toggle **Developer mode** in the top-right corner to **ON**.
+4. Click **"Load unpacked"** and select the `youtube-ai-tutor` folder.
+5. Pin the extension to your toolbar.
 
 ---
 
 ## 🔒 Privacy First
-* **Zero Server Overhead:** The extension communicates directly from your browser to the AI provider. There are no intermediary backend servers.
-* **100% Local Storage:** Your API keys, notes, history, and images are stored in your browser's IndexedDB.
-* **Zero Tracking:** No telemetry, no cookies, no analytics.
+
+* **Direct AI Connection**: All API calls are made directly from your browser to your chosen AI provider (Gemini, OpenAI, etc.). No intermediary servers read your prompts.
+* **Local Storage**: Your API keys, notes, chat histories, and images are stored locally in your browser's IndexedDB.
+* **Anonymous Active-User Counter**: To measure daily active users without tracking personal data, the extension sends a minimal anonymous daily ping (client UUID, browser, version). No URLs, no prompts, and no IP addresses are ever stored. You can opt out anytime in Settings.
 
 ---
 
 ## 💬 A Message from the Creator
+
 > "I built this extension because I was tired of pausing YouTube lectures, switching tabs, and losing my train of thought. YouTube AI Tutor is completely free, your API keys stay in your browser, and I literally can't see anything you do. If you find it useful, send me some nice words! 💖"
 >
-> — **Samya Loukili** 📧 [samyaloukili2@gmail.com](mailto:samyaloukili2@gmail.com)
+> — **Samya Loukili** 📧 [samyaloukili2@gmail.com](mailto:samyaloukili2@gmail.com) • [GitHub @samya818](https://github.com/samya818)
 
 ---
-*For a complete web introduction, visit the official page: **[kcbluojkxicfs.kimi.page](https://kcbluojkxicfs.kimi.page/)***
+*For more information, visit the official presentation page: **[kcbluojkxicfs.kimi.page](https://kcbluojkxicfs.kimi.page/)***
