@@ -14,6 +14,8 @@ Tired of pausing complex YouTube tutorials, switching between tabs, copying code
 
 **YouTube AI Tutor** gives you an instant AI tutor right beside your video. It observes the **video frames**, reads the **spoken transcript**, sees your **drawn annotations**, and can even analyze **photos of your textbook or homework sheets** uploaded directly from your computer!
 
+![YouTube AI Tutor - Full Interface Demo](images/image4.png)
+
 ---
 
 ## 🚀 Key Features
@@ -35,6 +37,8 @@ You are in 100% control of what information is sent to the AI model and how many
   * **Global + Local Hybrid**: Combines macro-level video understanding with fine-grained local context around the timestamp.
   * **Custom Time Windows**: Set your own exact seconds before and after the timestamp in Settings!
 
+![Multi-Frame Smart Capture](images/image3.png)
+
 ### 🔍 2. Interactive Spotlight Onboarding Guide
 New to the extension? A built-in, **interactive 7-step walkthrough** highlights buttons with a pulsating spotlight ring and guides you step-by-step with practical *"Try it now!"* actions. Replay it anytime from the Settings tab.
 
@@ -43,24 +47,37 @@ New to the extension? A built-in, **interactive 7-step walkthrough** highlights 
 * **Burn-in Merging**: Your hand-drawn annotations are merged directly onto the frame image, showing the AI exactly what you're pointing to.
 * **Non-intrusive UI**: Opens in Chrome Side Panel or Firefox popup without obstructing the YouTube player.
 
-### 📎 4. Ask Questions & Attach Local PC Photos
+![Native Side Panel Interface](images/image2.png)
+
+### 🤖 4. Context-Aware AI & LaTeX Mathematical Formatting
+The AI fuses your **drawn markup**, the **video frame context**, and the **audio transcript** together.
+* **Precise Answers**: The AI understands exactly which equation or code line you highlighted.
+* **LaTeX Formula Rendering**: Mathematical symbols and formulas are displayed with full KaTeX rendering.
+
+![Context-Aware AI with LaTeX Rendering](images/image1.png)
+
+### 📎 5. Ask Questions & Attach Local PC Photos
 * **Video + Document Analysis**: Click the small **`📎` (paperclip)** button in the chat input to attach photos of homework, handwritten notes, or textbook problems.
 * **Dual Vision Context**: The AI answers your question considering both the YouTube video context and your uploaded image together!
 
-### 📌 5. Revision Memos (0 Tokens) vs. AI Vision
+### 📌 6. Revision Memos (0 Tokens) vs. AI Vision
 * **Send to AI (`📎`)**: Sends your image to the LLM model for deep visual understanding.
 * **Revision Memos (`📌 Épingler capture` & `🖼 Photo mémo`)**: Save visual references directly into your chat log at **0 token cost**. They are preserved locally and appear in your PDF/Markdown exports!
 
-### 💬 6. Resume Past Discussions ("Continuer")
+### 💬 7. Resume Past Discussions ("Continuer")
 Never lose a train of thought! Open any saved notebook entry and click **`💬 Continuer`** to instantly restore the full previous discussion and ask follow-up questions right where you left off.
 
-### 📓 7. Multi-Notebook Organization
+### 📓 8. Multi-Notebook Organization
 * Organize notes by course, subject, or playlist.
 * Search and filter through past discussions in real-time.
 * 100% offline persistence with browser IndexedDB.
 
-### 🖨 8. Illustrated PDF & Markdown Export
+![Multi-Notebook Organization](images/image5.png)
+
+### 🖨 9. Illustrated PDF & Markdown Export
 * Export clean, beautifully formatted study sheets with syntax-highlighted code, rendered LaTeX math formulas, and all your visual memo photos included.
+
+![Export Options](images/image6.png)
 
 ---
 
@@ -73,6 +90,8 @@ YouTube AI Tutor connects directly to AI providers without markups or subscripti
   2. Click **"Create API key"** (free, generous quota).
   3. Paste it into the extension Settings and click **Save Key**.
 * **Other Providers Supported**: OpenAI (GPT-4o, GPT-4o-mini), Anthropic (Claude 3.5 Sonnet), Mistral AI, and OpenRouter.
+
+![API Keys Setup](images/image7.png)
 
 ---
 
