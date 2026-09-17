@@ -66,7 +66,10 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "youtube-ai-extension@samya818.github.io"
+      "id": "youtube-ai-extension@samya818.github.io",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
