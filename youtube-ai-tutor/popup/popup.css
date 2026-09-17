@@ -903,225 +903,256 @@ select option {
 }
 
 /* ==========================================================================
-   Interactive User Guide Walkthrough
+   Interactive User Guide — Spotlight + Tooltip System
    ========================================================================== */
-.guide-overlay {
+
+/* Dim backdrop — covers everything EXCEPT the highlighted element */
+.guide-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(4px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  animation: guideFadeIn 0.2s ease-out;
+  background: rgba(2, 8, 23, 0.72);
+  z-index: 9990;
+  pointer-events: none; /* let clicks pass through to the target element */
+  animation: guideFadeIn 0.25s ease-out;
 }
+.guide-backdrop.hidden { display: none !important; }
 
-.guide-overlay.hidden {
-  display: none !important;
+/* Pulsing ring that surrounds the targeted element */
+.guide-highlight-ring {
+  position: fixed;
+  z-index: 9992;
+  border-radius: 10px;
+  pointer-events: none;
+  /* The large box-shadow creates the "hole" spotlight cutout */
+  box-shadow:
+    0 0 0 9999px rgba(2, 8, 23, 0.72),
+    0 0 0 3px #3b82f6,
+    0 0 16px 4px rgba(59, 130, 246, 0.55);
+  animation: guideRingPulse 1.6s ease-in-out infinite;
+  transition: top 0.25s cubic-bezier(0.16,1,0.3,1),
+              left 0.25s cubic-bezier(0.16,1,0.3,1),
+              width 0.25s cubic-bezier(0.16,1,0.3,1),
+              height 0.25s cubic-bezier(0.16,1,0.3,1);
 }
+.guide-highlight-ring.hidden { display: none !important; }
 
-.guide-card {
+/* The floating tooltip card */
+.guide-tooltip {
+  position: fixed;
+  z-index: 9995;
+  left: 10px;
+  right: 10px;
   background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 14px;
-  width: 100%;
-  max-width: 360px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.15);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.55), 0 0 0 1px rgba(59,130,246,0.12);
+  padding: 14px 16px 12px;
   color: #f8fafc;
-  animation: guideSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: guideSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.guide-tooltip.hidden { display: none !important; }
+
+/* Arrow indicator (set via JS: .arrow-top / .arrow-bottom) */
+.guide-tooltip::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  border: 7px solid transparent;
+}
+.guide-tooltip.arrow-top::before {
+  top: -14px;
+  border-bottom-color: rgba(59,130,246,0.35);
+}
+.guide-tooltip.arrow-bottom::before {
+  bottom: -14px;
+  border-top-color: rgba(59,130,246,0.35);
+  top: auto;
 }
 
-.guide-header {
+.guide-tooltip-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .guide-step-tag {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.18);
   color: #93c5fd;
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.38);
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .guide-close-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 14px;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
   line-height: 1;
   transition: color 0.15s, background 0.15s;
 }
-
 .guide-close-btn:hover {
   color: #f8fafc;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.1);
 }
 
 .guide-body {
-  min-height: 170px;
+  /* content injected by JS */
 }
 
 .guide-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 7px;
+  margin-bottom: 6px;
 }
-
-.guide-icon {
-  font-size: 20px;
-}
-
+.guide-icon { font-size: 18px; }
 .guide-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
 
 .guide-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   color: #cbd5e1;
   line-height: 1.55;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.guide-box {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.guide-box strong {
+/* Action prompt — the "try clicking this!" instruction */
+.guide-action-prompt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #93c5fd;
+  margin-bottom: 8px;
+  line-height: 1.45;
 }
-
-.guide-box a {
-  color: #60a5fa;
-  text-decoration: underline;
-}
-
-.guide-box ol, .guide-box ul {
-  padding-left: 16px;
-  margin: 6px 0 0;
-}
-
-.guide-box li {
-  margin-bottom: 4px;
+.guide-action-prompt .guide-prompt-arrow {
+  font-size: 16px;
+  flex-shrink: 0;
+  animation: guideArrowBounce 0.9s ease-in-out infinite;
 }
 
 .guide-highlight-tip {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: #fde68a;
   background: rgba(245, 158, 11, 0.1);
   border-left: 3px solid #f59e0b;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: 4px;
   line-height: 1.45;
+  margin-bottom: 6px;
 }
 
+.guide-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+.guide-box strong { color: #93c5fd; }
+.guide-box a { color: #60a5fa; text-decoration: underline; cursor: pointer; }
+.guide-box ol, .guide-box ul { padding-left: 15px; margin: 5px 0 0; }
+.guide-box li { margin-bottom: 3px; }
+
+/* Step progress dots */
 .guide-dots {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin: 12px 0 14px;
+  margin: 10px 0 10px;
 }
-
 .guide-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  transition: background 0.2s, transform 0.2s;
+  background: rgba(255,255,255,0.22);
+  border: none;
   cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
 }
-
 .guide-dot.active {
   background: #3b82f6;
-  transform: scale(1.3);
+  transform: scale(1.35);
+}
+.guide-dot:hover:not(.active) {
+  background: rgba(255,255,255,0.45);
 }
 
+/* Footer with nav buttons */
 .guide-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
 }
+.guide-nav-btns { display: flex; gap: 6px; }
 
 .guide-btn {
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   border: none;
   transition: 0.15s;
+  white-space: nowrap;
 }
+.guide-btn.primary { background: #3b82f6; color: #fff; }
+.guide-btn.primary:hover { background: #2563eb; }
+.guide-btn.secondary { background: rgba(255,255,255,0.08); color: #cbd5e1; }
+.guide-btn.secondary:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.guide-btn.text-btn { background: none; color: #64748b; padding: 5px 8px; }
+.guide-btn.text-btn:hover { color: #f8fafc; }
 
-.guide-btn.primary {
-  background: #3b82f6;
-  color: #ffffff;
-}
-
-.guide-btn.primary:hover {
-  background: #2563eb;
-}
-
-.guide-btn.secondary {
-  background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-}
-
-.guide-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-.guide-btn.text-btn {
-  background: none;
-  color: #94a3b8;
-  padding: 6px 8px;
-}
-
-.guide-btn.text-btn:hover {
-  color: #f8fafc;
-}
-
-.guide-nav-btns {
-  display: flex;
-  gap: 6px;
-}
-
+/* Animations */
 @keyframes guideFadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
-@keyframes guideSlideUp {
-  from { opacity: 0; transform: translateY(12px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes guideSlideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
 }
+
+@keyframes guideRingPulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(2,8,23,0.72), 0 0 0 3px #3b82f6, 0 0 14px 3px rgba(59,130,246,0.5); }
+  50%       { box-shadow: 0 0 0 9999px rgba(2,8,23,0.72), 0 0 0 4px #60a5fa, 0 0 22px 7px rgba(96,165,250,0.7); }
+}
+
+@keyframes guideArrowBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(3px); }
+}
+
+
 

@@ -161,23 +161,25 @@
     </section>
   </div>
 
-  <!-- Interactive User Guide Modal -->
-  <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true">
-    <div class="guide-card">
-      <div class="guide-header">
-        <span class="guide-step-tag" id="guide-step-indicator">Step 1 of 5</span>
-        <button id="guide-close-btn" class="guide-close-btn" type="button" title="Close Guide">✕</button>
-      </div>
-      <div class="guide-body" id="guide-body">
-        <!-- Injected dynamically by popup.js -->
-      </div>
-      <div class="guide-dots" id="guide-dots"></div>
-      <div class="guide-footer">
-        <button id="guide-skip-btn" class="guide-btn text-btn" type="button">Skip Guide</button>
-        <div class="guide-nav-btns">
-          <button id="guide-prev-btn" class="guide-btn secondary" type="button">Back</button>
-          <button id="guide-next-btn" class="guide-btn primary" type="button">Next →</button>
-        </div>
+  <!-- Interactive Guide: backdrop dim layer -->
+  <div id="guide-backdrop" class="guide-backdrop hidden"></div>
+  <!-- Interactive Guide: pulsing highlight ring over the target element -->
+  <div id="guide-highlight-ring" class="guide-highlight-ring hidden"></div>
+  <!-- Interactive Guide: floating tooltip card -->
+  <div id="guide-tooltip" class="guide-tooltip hidden" role="dialog" aria-modal="true">
+    <div class="guide-tooltip-header">
+      <span class="guide-step-tag" id="guide-step-indicator">Step 1 of 7</span>
+      <button id="guide-close-btn" class="guide-close-btn" type="button" title="Close Guide">✕</button>
+    </div>
+    <div class="guide-body" id="guide-body">
+      <!-- Injected dynamically by popup.js -->
+    </div>
+    <div class="guide-dots" id="guide-dots"></div>
+    <div class="guide-footer">
+      <button id="guide-skip-btn" class="guide-btn text-btn" type="button">Skip Guide</button>
+      <div class="guide-nav-btns">
+        <button id="guide-prev-btn" class="guide-btn secondary" type="button">Back</button>
+        <button id="guide-next-btn" class="guide-btn primary" type="button">Next →</button>
       </div>
     </div>
   </div>

@@ -559,82 +559,154 @@
     }
   }
 
-  // ── Interactive User Onboarding Guide ──────────────────────────────────────
+  // ── Interactive User Onboarding Guide (Spotlight & Try-It-Now) ──────────────
 
   let currentGuideStep = 0;
+  let activeStepCleanup = null;
 
   const GUIDE_STEPS = [
     {
       panel: 'settings',
+      targetSelector: '#api-key-input',
       icon: '🔑',
-      title: 'Get Your Free Gemini API Key',
-      desc: 'Welcome to YouTube AI Tutor! To start asking questions and analyzing video frames with AI, you need an API key. Google offers Gemini API keys completely free of charge.',
-      box: `<strong>How to get your free key in 1 minute:</strong>
-<ol>
-  <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" class="guide-external-link">Google AI Studio (free API keys)</a>.</li>
-  <li>Sign in with your Google account and click <strong>"Create API key"</strong>.</li>
-  <li>Copy your key, select <strong>Gemini</strong> in the Settings panel below, paste the key into the input field, and click <strong>Save Key</strong>.</li>
-</ol>`,
-      tip: 'Your key is stored securely on your local device only. No subscription or credit card needed!'
+      title: 'Step 1: Enter Your Gemini API Key',
+      desc: 'To enable AI tutoring and video analysis, enter your Google Gemini API key here.',
+      actionPrompt: 'Try clicking this input field! If you do not have a key yet, click the link below to get one in 10 seconds:',
+      box: '<a href="https://aistudio.google.com/app/apikey" target="_blank" class="guide-external-link">🔗 Click here to get a free Google AI Studio key</a>',
+      tip: 'Gemini keys are completely free, generous, and stored only in your local browser.',
+      autoAdvanceOn: 'focus',
+      padding: 5
+    },
+    {
+      panel: 'settings',
+      targetSelector: '#save-key-btn',
+      icon: '💾',
+      title: 'Step 2: Save Your API Key',
+      desc: 'After typing or pasting your key, click this button to validate and securely save it.',
+      actionPrompt: 'Try clicking "Save Key" when your key is ready!',
+      tip: 'Once saved, you never need to enter it again. Your key stays saved across sessions.',
+      autoAdvanceOn: 'click',
+      padding: 5
     },
     {
       panel: 'chat',
+      targetSelector: '#recapture-btn',
       icon: '📸',
-      title: 'Video Capture & Visual Annotation',
-      desc: 'Whenever you watch a YouTube video, this extension automatically grabs the current video frame and nearby transcript context when opened.',
-      box: `<strong>Visual Learning Tools:</strong>
-<ul>
-  <li>Click <strong>Draw / Annotate</strong> to circle formulas, draw arrows, or highlight diagrams directly on the video frame.</li>
-  <li>Choose between <strong>Single Frame (T0)</strong> or <strong>Multi-Frame (T-X, T0, T+X)</strong> in Settings to help the AI understand temporal movement or animations.</li>
-</ul>`,
-      tip: 'The AI sees both the exact image on your screen and the spoken words from the video transcript!'
+      title: 'Step 3: Capture Video Frame',
+      desc: 'When watching a YouTube video, this button captures the exact video frame at the current timestamp along with the spoken transcript context.',
+      actionPrompt: 'Try clicking "↻ Recapture" to snapshot the current video tab!',
+      tip: 'The extension also captures automatically whenever you open it on a YouTube video page.',
+      autoAdvanceOn: 'click',
+      padding: 5
     },
     {
       panel: 'chat',
-      icon: '💬',
-      title: 'Ask Questions & Send Images from PC',
-      desc: 'Interact with the AI tutor directly in the chat tab to clarify concepts, solve exercises, or summarize video segments.',
-      box: `<strong>How to ask & attach:</strong>
-<ul>
-  <li>Type your question into the chat input bar and press <strong>Send</strong> or hit <strong>Enter</strong>.</li>
-  <li>Have a textbook photo, homework problem, or notes on your computer? Click the small <strong>📎 (paperclip)</strong> button to attach it to your question!</li>
-  <li>The AI will analyze both the video frame and your uploaded image together.</li>
-</ul>`,
-      tip: 'A mini thumbnail appears above the input bar when an image is attached so you can confirm or remove it anytime.'
+      targetSelector: '#annotate-btn',
+      icon: '✏️',
+      title: 'Step 4: Draw & Annotate the Frame',
+      desc: 'Click Draw / Annotate to open the built-in canvas. Circle math formulas, highlight text, or draw arrows right on the frame.',
+      actionPrompt: 'Try clicking "Draw / Annotate" to see the visual markup tools!',
+      tip: 'Visual annotations help the AI tutor instantly pinpoint what you are referring to.',
+      autoAdvanceOn: 'click',
+      padding: 5
     },
     {
       panel: 'chat',
+      targetSelector: '#attach-llm-image-btn',
+      icon: '📎',
+      title: 'Step 5: Attach PC Photos & Ask the AI',
+      desc: 'Have a photo of your textbook, homework problem, or notes? Click this small 📎 paperclip button to attach it to your question.',
+      actionPrompt: 'Try clicking the 📎 paperclip button to attach a photo from your PC!',
+      tip: 'Type your question in the input bar and press Enter. The AI analyzes both the video frame and your attached photo!',
+      autoAdvanceOn: 'click',
+      padding: 6
+    },
+    {
+      panel: 'chat',
+      targetSelector: '.chat-action-bar',
       icon: '📌',
-      title: 'Revision Memos vs. AI Model Photos',
-      desc: 'Notice the difference between the two ways to use photos in the extension:',
-      box: `<strong>Understanding Image Types:</strong>
-<ul>
-  <li><strong>📎 Paperclip (Send to AI):</strong> Transmits your image to the LLM model so it can answer questions about it (uses AI tokens).</li>
-  <li><strong>📌 Épingler capture & 🖼 Photo mémo:</strong> Saves screenshots or local PC images as <em>Revision Memos</em> in the chat history. They are purely for your revision, never sent to the AI (0 tokens used), and appear in your PDF/HTML exports!</li>
-</ul>`,
-      tip: 'Pin key video frames or insert reference photos to create the ultimate illustrated revision sheet!'
+      title: 'Step 6: Revision Memos (0 Tokens)',
+      desc: 'Understand the difference: 📎 paperclip sends images to the AI (uses tokens). But these 4 buttons save visual notes directly into the chat for your revision (costs 0 tokens) and export to PDF!',
+      actionPrompt: 'Try clicking "📌 Épingler capture" or "🖼 Photo mémo" to insert a visual note!',
+      tip: 'Use Revision Memos to build illustrated summary sheets for later review and export.',
+      autoAdvanceOn: 'click',
+      padding: 6
     },
     {
       panel: 'notebooks',
+      targetSelector: '#create-notebook-btn',
       icon: '📓',
-      title: 'Notebooks, PDF Export & Resume Past Chats',
-      desc: 'Organize your knowledge by subject, course, or playlist, and access your study materials anytime.',
-      box: `<strong>Never lose your progress:</strong>
-<ul>
-  <li>Save important answers, notes, and visual frames to themed <strong>Notebooks</strong>.</li>
-  <li>Click <strong>🖨 Export PDF</strong> or <strong>⬇ Export MD</strong> to export beautiful, illustrated study sheets with all your memo photos included.</li>
-  <li>Want to ask follow-up questions to an old study session? Open any notebook entry and click <strong>💬 Continuer</strong> to instantly restore and continue that chat!</li>
-</ul>`,
-      tip: 'You are ready to learn! You can replay this guide anytime by clicking "📖 User Guide" in the Settings tab.'
+      title: 'Step 7: Notebooks & Resume Past Chats',
+      desc: 'Organize notes by subject or course. Inside any saved notebook entry, click "💬 Continuer" to instantly restore that past discussion and keep learning!',
+      actionPrompt: 'Try clicking "+ New Notebook" to create your first notebook!',
+      tip: 'You are all set! You can replay this interactive guide anytime from the Settings tab.',
+      autoAdvanceOn: 'click',
+      padding: 6
     }
   ];
+
+  function positionGuideForStep(index) {
+    const step = GUIDE_STEPS[index];
+    if (!step) return;
+
+    const ring = document.getElementById('guide-highlight-ring');
+    const tooltip = document.getElementById('guide-tooltip');
+    const backdrop = document.getElementById('guide-backdrop');
+    if (!ring || !tooltip || !backdrop) return;
+
+    const targetEl = step.targetSelector ? document.querySelector(step.targetSelector) : null;
+    if (targetEl) {
+      targetEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+      setTimeout(() => {
+        const rect = targetEl.getBoundingClientRect();
+        const pad = step.padding ?? 6;
+
+        ring.style.top = Math.max(0, rect.top - pad) + 'px';
+        ring.style.left = Math.max(0, rect.left - pad) + 'px';
+        ring.style.width = (rect.width + pad * 2) + 'px';
+        ring.style.height = (rect.height + pad * 2) + 'px';
+        ring.classList.remove('hidden');
+
+        // Smart tooltip positioning
+        const spaceBelow = window.innerHeight - (rect.bottom + pad);
+        const spaceAbove = rect.top - pad;
+
+        if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+          tooltip.style.top = Math.min(window.innerHeight - 240, rect.bottom + pad + 10) + 'px';
+          tooltip.style.bottom = 'auto';
+          tooltip.classList.add('arrow-top');
+          tooltip.classList.remove('arrow-bottom');
+        } else {
+          tooltip.style.bottom = (window.innerHeight - rect.top + pad + 10) + 'px';
+          tooltip.style.top = 'auto';
+          tooltip.classList.add('arrow-bottom');
+          tooltip.classList.remove('arrow-top');
+        }
+      }, 60);
+    } else {
+      ring.classList.add('hidden');
+      tooltip.style.top = '60px';
+      tooltip.style.bottom = 'auto';
+      tooltip.classList.remove('arrow-top', 'arrow-bottom');
+    }
+
+    backdrop.classList.remove('hidden');
+    tooltip.classList.remove('hidden');
+  }
 
   function showGuideStep(index) {
     if (index < 0 || index >= GUIDE_STEPS.length) return;
     currentGuideStep = index;
     const step = GUIDE_STEPS[index];
 
-    // Switch to the relevant tab so the user sees what the step refers to
+    // Clean up previous interactive listener
+    if (activeStepCleanup) {
+      activeStepCleanup();
+      activeStepCleanup = null;
+    }
+
+    // Switch to the relevant tab so the target element is mounted & visible
     if (step.panel) {
       const tabBtn = document.querySelector(`.tab[data-panel="${step.panel}"]`);
       if (tabBtn && !tabBtn.classList.contains('active')) {
@@ -642,13 +714,13 @@
       }
     }
 
-    // Update step indicator
+    // Update step tag
     const indicator = document.getElementById('guide-step-indicator');
     if (indicator) {
       indicator.textContent = `Step ${index + 1} of ${GUIDE_STEPS.length}`;
     }
 
-    // Render body
+    // Render body content
     const body = document.getElementById('guide-body');
     if (body) {
       body.innerHTML = `
@@ -657,6 +729,11 @@
           <span class="guide-title">${step.title}</span>
         </div>
         <div class="guide-desc">${step.desc}</div>
+        ${step.actionPrompt ? `
+          <div class="guide-action-prompt">
+            <span class="guide-prompt-arrow">👉</span>
+            <div>${step.actionPrompt}</div>
+          </div>` : ''}
         ${step.box ? `<div class="guide-box">${step.box}</div>` : ''}
         ${step.tip ? `<div class="guide-highlight-tip"><span>💡</span><div>${step.tip}</div></div>` : ''}
       `;
@@ -665,7 +742,7 @@
     // Render pagination dots
     renderGuideDots(index);
 
-    // Update nav buttons
+    // Update navigation buttons
     const prevBtn = document.getElementById('guide-prev-btn');
     const nextBtn = document.getElementById('guide-next-btn');
     if (prevBtn) {
@@ -675,10 +752,24 @@
       nextBtn.textContent = index === GUIDE_STEPS.length - 1 ? 'Got it! 🎉' : 'Next →';
     }
 
-    // Show overlay
-    const overlay = document.getElementById('guide-overlay');
-    if (overlay) {
-      overlay.classList.remove('hidden');
+    // Position spotlight ring and tooltip card
+    positionGuideForStep(index);
+
+    // Auto-advance listener when the user tries clicking or focusing the highlighted element
+    if (step.targetSelector && step.autoAdvanceOn) {
+      const targetEl = document.querySelector(step.targetSelector);
+      if (targetEl) {
+        const handler = () => {
+          if (currentGuideStep === index && currentGuideStep < GUIDE_STEPS.length - 1) {
+            showToast('✓ Great job! Moving to next step...');
+            setTimeout(() => {
+              showGuideStep(index + 1);
+            }, 600);
+          }
+        };
+        targetEl.addEventListener(step.autoAdvanceOn, handler, { once: true });
+        activeStepCleanup = () => targetEl.removeEventListener(step.autoAdvanceOn, handler);
+      }
     }
   }
 
@@ -690,17 +781,21 @@
       const dot = document.createElement('button');
       dot.type = 'button';
       dot.className = `guide-dot${idx === currentIndex ? ' active' : ''}`;
-      dot.title = `Go to step ${idx + 1}`;
+      dot.title = `Step ${idx + 1}: ${GUIDE_STEPS[idx].title}`;
       dot.addEventListener('click', () => showGuideStep(idx));
       container.appendChild(dot);
     });
   }
 
   function closeGuide(markAsSeen = true) {
-    const overlay = document.getElementById('guide-overlay');
-    if (overlay) {
-      overlay.classList.add('hidden');
+    if (activeStepCleanup) {
+      activeStepCleanup();
+      activeStepCleanup = null;
     }
+    document.getElementById('guide-backdrop')?.classList.add('hidden');
+    document.getElementById('guide-highlight-ring')?.classList.add('hidden');
+    document.getElementById('guide-tooltip')?.classList.add('hidden');
+
     if (markAsSeen) {
       chrome.storage.local.set({ hasSeenOnboardingGuide: true });
     }
@@ -1400,13 +1495,6 @@
       }
     });
 
-    // Close guide on backdrop click
-    document.getElementById('guide-overlay')?.addEventListener('click', (e) => {
-      if (e.target.id === 'guide-overlay') {
-        closeGuide(true);
-      }
-    });
-
     // Delegate external links inside guide body to open safely in new tab
     document.getElementById('guide-body')?.addEventListener('click', (e) => {
       const link = e.target.closest('a');
@@ -1416,11 +1504,19 @@
       }
     });
 
+    // Re-position tooltip and spotlight on window resize
+    window.addEventListener('resize', () => {
+      const tooltip = document.getElementById('guide-tooltip');
+      if (tooltip && !tooltip.classList.contains('hidden')) {
+        positionGuideForStep(currentGuideStep);
+      }
+    });
+
     // ESC key closes guide modal
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        const overlay = document.getElementById('guide-overlay');
-        if (overlay && !overlay.classList.contains('hidden')) {
+        const tooltip = document.getElementById('guide-tooltip');
+        if (tooltip && !tooltip.classList.contains('hidden')) {
           closeGuide(true);
         }
       }
