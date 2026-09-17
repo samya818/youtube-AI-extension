@@ -18,31 +18,48 @@ Tired of pausing complex YouTube tutorials, switching between tabs, copying code
 
 ## 🚀 Key Features
 
-### 🔍 1. Interactive Spotlight Onboarding Guide
+### 🎛️ 1. Complete Control Over AI Context & Token Budget
+You are in 100% control of what information is sent to the AI model and how many tokens are used:
+
+* **Visual Frame Control (Which & How Many Frames):**
+  * **Single Frame (`T0`)**: Sends only the exact freeze-frame at the current timestamp — fast and token-efficient.
+  * **Temporal Multi-Frame (`T-X`, `T0`, `T+X`)**: Sends a 3-frame sequence showing motion, step-by-step code changes, or animation progression.
+  * **Frame Selection**: Pick precisely which specific frame from the timeline is passed to the AI.
+  * **Text-Only Mode (`None`)**: Completely disables image sending to consume zero image tokens when you only need transcript/text answers.
+
+* **Transcript Context Control (How Much Text Context):**
+  * **Economical (30s before / 15s after)**: Compact context window for quick questions, maximizing speed and minimizing token usage.
+  * **Standard (60s before / 30s after)**: Balanced default context window.
+  * **Complete (120s before / 60s after)**: Deep local context for dense technical lectures.
+  * **Global Video Context**: Feeds the entire video transcript to the model for whole-lecture summaries, overarching themes, or chapter breakdowns.
+  * **Global + Local Hybrid**: Combines macro-level video understanding with fine-grained local context around the timestamp.
+  * **Custom Time Windows**: Set your own exact seconds before and after the timestamp in Settings!
+
+### 🔍 2. Interactive Spotlight Onboarding Guide
 New to the extension? A built-in, **interactive 7-step walkthrough** highlights buttons with a pulsating spotlight ring and guides you step-by-step with practical *"Try it now!"* actions. Replay it anytime from the Settings tab.
 
-### 📸 2. Smart Frame Capture & Canvas Annotations
-* **Temporal Multi-Frame (`T-X`, `T0`, `T+X`)**: Capture progressions, movements, or algorithm animations rather than just a static image.
-* **Canvas Drawing Tools**: Draw arrows, circle formulas, or write notes directly onto the video snapshot before asking the AI.
+### 📸 3. Canvas Annotations on Captured Frames
+* **Visual Markup Tools**: Draw arrows, circle math formulas, or write notes directly onto the video snapshot before asking the AI.
+* **Burn-in Merging**: Your hand-drawn annotations are merged directly onto the frame image, showing the AI exactly what you're pointing to.
 * **Non-intrusive UI**: Opens in Chrome Side Panel or Firefox popup without obstructing the YouTube player.
 
-### 📎 3. Ask Questions & Attach Local PC Photos
+### 📎 4. Ask Questions & Attach Local PC Photos
 * **Video + Document Analysis**: Click the small **`📎` (paperclip)** button in the chat input to attach photos of homework, handwritten notes, or textbook problems.
 * **Dual Vision Context**: The AI answers your question considering both the YouTube video context and your uploaded image together!
 
-### 📌 4. Revision Memos (0 Tokens) vs. AI Vision
+### 📌 5. Revision Memos (0 Tokens) vs. AI Vision
 * **Send to AI (`📎`)**: Sends your image to the LLM model for deep visual understanding.
 * **Revision Memos (`📌 Épingler capture` & `🖼 Photo mémo`)**: Save visual references directly into your chat log at **0 token cost**. They are preserved locally and appear in your PDF/Markdown exports!
 
-### 💬 5. Resume Past Discussions ("Continuer")
+### 💬 6. Resume Past Discussions ("Continuer")
 Never lose a train of thought! Open any saved notebook entry and click **`💬 Continuer`** to instantly restore the full previous discussion and ask follow-up questions right where you left off.
 
-### 📓 6. Multi-Notebook Organization
+### 📓 7. Multi-Notebook Organization
 * Organize notes by course, subject, or playlist.
 * Search and filter through past discussions in real-time.
 * 100% offline persistence with browser IndexedDB.
 
-### 🖨 7. Illustrated PDF & Markdown Export
+### 🖨 8. Illustrated PDF & Markdown Export
 * Export clean, beautifully formatted study sheets with syntax-highlighted code, rendered LaTeX math formulas, and all your visual memo photos included.
 
 ---
