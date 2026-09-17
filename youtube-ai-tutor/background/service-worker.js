@@ -211,9 +211,11 @@ async function setActiveProvider(provider) {
 let dbReady = false;
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
-    console.error('[YTAITutor] sidePanel setup failed:', err);
-  });
+  if (chrome.sidePanel?.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+      console.warn('[YTAITutor] sidePanel setup not supported:', err);
+    });
+  }
 
   // Local-only usage counters (no network tracking)
   try {
@@ -230,6 +232,61 @@ chrome.runtime.onInstalled.addListener(() => {
     // ignore
   }
 });
+
+// ── Anonymous Usage Telemetry (Supabase) ────────────────────────────────────
+const SUPABASE_PROJECT_URL = 'https://mbwapniarmmouuuyhkyf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_2CXkEsUxTSeQCX0AXYPd6w_D2fOYAEv';
+
+async function sendTelemetryHeartbeat({ isQuestion = false } = {}) {
+  try {
+    const data = await chrome.storage.local.get([
+      'client_anonymous_id',
+      'telemetry_opt_out',
+      'last_open_ping_ts'
+    ]);
+
+    // Respect user privacy opt-out
+    if (data.telemetry_opt_out) return;
+
+    let clientId = data.client_anonymous_id;
+    if (!clientId) {
+      clientId = 'usr_' + (self.crypto?.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+      await chrome.storage.local.set({ client_anonymous_id: clientId });
+    }
+
+    const now = Date.now();
+    // Throttle open pings: at most once every 30 minutes unless it's a question event
+    if (!isQuestion && data.last_open_ping_ts && (now - data.last_open_ping_ts < 30 * 60 * 1000)) {
+      return;
+    }
+
+    const isFirefox = typeof InstallTrigger !== 'undefined' || (navigator.userAgent && navigator.userAgent.includes('Firefox'));
+
+    await fetch(`${SUPABASE_PROJECT_URL}/rest/v1/pings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        opens: isQuestion ? 0 : 1,
+        questions: isQuestion ? 1 : 0,
+        browser: isFirefox ? 'firefox' : 'chrome',
+        version: chrome.runtime.getManifest().version
+      })
+    });
+
+    if (!isQuestion) {
+      await chrome.storage.local.set({ last_open_ping_ts: now });
+    }
+  } catch (err) {
+    // Silently continue so core extension functions are never blocked
+    console.debug('[YTAITutor] Telemetry ping skipped:', err.message);
+  }
+}
 
 async function ensureDbReady() {
   if (dbReady) {
@@ -1870,6 +1927,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           usage.opens = (usage.opens || 0) + 1;
           usage.lastUpdatedAt = Date.now();
           await chrome.storage.local.set({ usageStats: usage });
+          sendTelemetryHeartbeat({ isQuestion: false });
           sendResponse({ ok: true });
           break;
         }
@@ -2083,6 +2141,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
         case 'askGemini':
         case 'askLLM': {
+          sendTelemetryHeartbeat({ isQuestion: true });
           const {
             question,
             imageDataUrl,
@@ -2446,7 +2505,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         case 'openSidePanel':
         case 'openPopup': {
           const tabId = _sender.tab?.id;
-          if (tabId) {
+          if (tabId && chrome.sidePanel?.open) {
             await chrome.sidePanel.open({ tabId });
           }
           sendResponse({ success: true });

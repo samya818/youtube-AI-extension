@@ -21,10 +21,12 @@
     "https://api.openai.com/*",
     "https://api.anthropic.com/*",
     "https://api.mistral.ai/*",
-    "https://openrouter.ai/*"
+    "https://openrouter.ai/*",
+    "https://mbwapniarmmouuuyhkyf.supabase.co/*"
   ],
   "action": {
     "default_title": "YouTube AI Tutor",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
