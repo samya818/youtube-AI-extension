@@ -14,6 +14,19 @@
     defaultTranscriptContext: 'standard'
   };
 
+  /**
+   * In-memory chat log — mirrors what is shown in #chat-messages.
+   * Each entry: { role: 'user'|'assistant'|'image', text: string, imageDataUrl?: string, label?: string }
+   * 'image' entries are display-only reference photos, never sent to the AI model.
+   */
+  let chatLog = [];
+
+  /**
+   * Image file from user's PC attached to be sent to the AI model with the next question.
+   * Format: { dataUrl: string, name: string } | null
+   */
+  let attachedLlmImage = null;
+
   /** @type {Record<string, { beforeSec: number, afterSec: number, preferFull: boolean }>} */
   const TRANSCRIPT_PRIORITY_PRESETS = {
     economical: { beforeSec: 30, afterSec: 15, preferFull: false },
@@ -210,16 +223,25 @@
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Attach tabs and all user event listeners IMMEDIATELY so the UI is never frozen
+    setupTabs();
+    setupEventListeners();
+    setupCaptureStorageListener();
+
+    // 2. Load async states concurrently and safely (never block each other or the UI)
     try {
-      setupTabs();
-      setupCaptureStorageListener();
-      await loadCapture();
-      await loadSettings();
-      await loadNotebooks();
-      setupEventListeners();
+      await Promise.allSettled([
+        loadCapture().catch((err) => console.warn('[YTAITutor] loadCapture failed:', err)),
+        loadSettings().catch((err) => console.warn('[YTAITutor] loadSettings failed:', err)),
+        loadNotebooks().catch((err) => console.warn('[YTAITutor] loadNotebooks failed:', err)),
+        loadChatSession().catch((err) => console.warn('[YTAITutor] loadChatSession failed:', err))
+      ]);
 
       // Local-only usage counters (no network tracking)
       await bumpUsageOpenAndRender();
+
+      // Check if new user needs the interactive onboarding guide
+      checkAutoStartGuide();
     } catch (err) {
       console.error('[YTAITutor Popup] Init error:', err);
     }
@@ -537,6 +559,166 @@
     }
   }
 
+  // ── Interactive User Onboarding Guide ──────────────────────────────────────
+
+  let currentGuideStep = 0;
+
+  const GUIDE_STEPS = [
+    {
+      panel: 'settings',
+      icon: '🔑',
+      title: 'Get Your Free Gemini API Key',
+      desc: 'Welcome to YouTube AI Tutor! To start asking questions and analyzing video frames with AI, you need an API key. Google offers Gemini API keys completely free of charge.',
+      box: `<strong>How to get your free key in 1 minute:</strong>
+<ol>
+  <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" class="guide-external-link">Google AI Studio (free API keys)</a>.</li>
+  <li>Sign in with your Google account and click <strong>"Create API key"</strong>.</li>
+  <li>Copy your key, select <strong>Gemini</strong> in the Settings panel below, paste the key into the input field, and click <strong>Save Key</strong>.</li>
+</ol>`,
+      tip: 'Your key is stored securely on your local device only. No subscription or credit card needed!'
+    },
+    {
+      panel: 'chat',
+      icon: '📸',
+      title: 'Video Capture & Visual Annotation',
+      desc: 'Whenever you watch a YouTube video, this extension automatically grabs the current video frame and nearby transcript context when opened.',
+      box: `<strong>Visual Learning Tools:</strong>
+<ul>
+  <li>Click <strong>Draw / Annotate</strong> to circle formulas, draw arrows, or highlight diagrams directly on the video frame.</li>
+  <li>Choose between <strong>Single Frame (T0)</strong> or <strong>Multi-Frame (T-X, T0, T+X)</strong> in Settings to help the AI understand temporal movement or animations.</li>
+</ul>`,
+      tip: 'The AI sees both the exact image on your screen and the spoken words from the video transcript!'
+    },
+    {
+      panel: 'chat',
+      icon: '💬',
+      title: 'Ask Questions & Send Images from PC',
+      desc: 'Interact with the AI tutor directly in the chat tab to clarify concepts, solve exercises, or summarize video segments.',
+      box: `<strong>How to ask & attach:</strong>
+<ul>
+  <li>Type your question into the chat input bar and press <strong>Send</strong> or hit <strong>Enter</strong>.</li>
+  <li>Have a textbook photo, homework problem, or notes on your computer? Click the small <strong>📎 (paperclip)</strong> button to attach it to your question!</li>
+  <li>The AI will analyze both the video frame and your uploaded image together.</li>
+</ul>`,
+      tip: 'A mini thumbnail appears above the input bar when an image is attached so you can confirm or remove it anytime.'
+    },
+    {
+      panel: 'chat',
+      icon: '📌',
+      title: 'Revision Memos vs. AI Model Photos',
+      desc: 'Notice the difference between the two ways to use photos in the extension:',
+      box: `<strong>Understanding Image Types:</strong>
+<ul>
+  <li><strong>📎 Paperclip (Send to AI):</strong> Transmits your image to the LLM model so it can answer questions about it (uses AI tokens).</li>
+  <li><strong>📌 Épingler capture & 🖼 Photo mémo:</strong> Saves screenshots or local PC images as <em>Revision Memos</em> in the chat history. They are purely for your revision, never sent to the AI (0 tokens used), and appear in your PDF/HTML exports!</li>
+</ul>`,
+      tip: 'Pin key video frames or insert reference photos to create the ultimate illustrated revision sheet!'
+    },
+    {
+      panel: 'notebooks',
+      icon: '📓',
+      title: 'Notebooks, PDF Export & Resume Past Chats',
+      desc: 'Organize your knowledge by subject, course, or playlist, and access your study materials anytime.',
+      box: `<strong>Never lose your progress:</strong>
+<ul>
+  <li>Save important answers, notes, and visual frames to themed <strong>Notebooks</strong>.</li>
+  <li>Click <strong>🖨 Export PDF</strong> or <strong>⬇ Export MD</strong> to export beautiful, illustrated study sheets with all your memo photos included.</li>
+  <li>Want to ask follow-up questions to an old study session? Open any notebook entry and click <strong>💬 Continuer</strong> to instantly restore and continue that chat!</li>
+</ul>`,
+      tip: 'You are ready to learn! You can replay this guide anytime by clicking "📖 User Guide" in the Settings tab.'
+    }
+  ];
+
+  function showGuideStep(index) {
+    if (index < 0 || index >= GUIDE_STEPS.length) return;
+    currentGuideStep = index;
+    const step = GUIDE_STEPS[index];
+
+    // Switch to the relevant tab so the user sees what the step refers to
+    if (step.panel) {
+      const tabBtn = document.querySelector(`.tab[data-panel="${step.panel}"]`);
+      if (tabBtn && !tabBtn.classList.contains('active')) {
+        tabBtn.click();
+      }
+    }
+
+    // Update step indicator
+    const indicator = document.getElementById('guide-step-indicator');
+    if (indicator) {
+      indicator.textContent = `Step ${index + 1} of ${GUIDE_STEPS.length}`;
+    }
+
+    // Render body
+    const body = document.getElementById('guide-body');
+    if (body) {
+      body.innerHTML = `
+        <div class="guide-title-row">
+          <span class="guide-icon">${step.icon}</span>
+          <span class="guide-title">${step.title}</span>
+        </div>
+        <div class="guide-desc">${step.desc}</div>
+        ${step.box ? `<div class="guide-box">${step.box}</div>` : ''}
+        ${step.tip ? `<div class="guide-highlight-tip"><span>💡</span><div>${step.tip}</div></div>` : ''}
+      `;
+    }
+
+    // Render pagination dots
+    renderGuideDots(index);
+
+    // Update nav buttons
+    const prevBtn = document.getElementById('guide-prev-btn');
+    const nextBtn = document.getElementById('guide-next-btn');
+    if (prevBtn) {
+      prevBtn.style.visibility = index === 0 ? 'hidden' : 'visible';
+    }
+    if (nextBtn) {
+      nextBtn.textContent = index === GUIDE_STEPS.length - 1 ? 'Got it! 🎉' : 'Next →';
+    }
+
+    // Show overlay
+    const overlay = document.getElementById('guide-overlay');
+    if (overlay) {
+      overlay.classList.remove('hidden');
+    }
+  }
+
+  function renderGuideDots(currentIndex) {
+    const container = document.getElementById('guide-dots');
+    if (!container) return;
+    container.innerHTML = '';
+    GUIDE_STEPS.forEach((_, idx) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = `guide-dot${idx === currentIndex ? ' active' : ''}`;
+      dot.title = `Go to step ${idx + 1}`;
+      dot.addEventListener('click', () => showGuideStep(idx));
+      container.appendChild(dot);
+    });
+  }
+
+  function closeGuide(markAsSeen = true) {
+    const overlay = document.getElementById('guide-overlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+    }
+    if (markAsSeen) {
+      chrome.storage.local.set({ hasSeenOnboardingGuide: true });
+    }
+  }
+
+  async function checkAutoStartGuide() {
+    try {
+      const res = await chrome.storage.local.get('hasSeenOnboardingGuide');
+      if (!res?.hasSeenOnboardingGuide) {
+        setTimeout(() => {
+          showGuideStep(0);
+        }, 500);
+      }
+    } catch (err) {
+      console.warn('[YTAITutor] Guide check error:', err);
+    }
+  }
+
   function setupEventListeners() {
     document.getElementById('default-frame-mode-select')?.addEventListener('change', async (e) => {
       userDefaultPreferences.defaultFrameMode = e.target.value;
@@ -553,6 +735,33 @@
       if (e.key === 'Enter') {
         sendQuestion();
       }
+    });
+
+    // Attach a photo from user's PC to be analyzed by the AI model
+    const llmFileInput = document.getElementById('llm-image-file-input');
+    document.getElementById('attach-llm-image-btn')?.addEventListener('click', () => {
+      llmFileInput?.click();
+    });
+
+    llmFileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('Veuillez sélectionner un fichier image valide.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        setAttachedLlmImage(loadEvt.target.result, file.name);
+        showToast('Photo jointe pour l’IA ! Elle sera analysée avec votre question.');
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('remove-llm-image-btn')?.addEventListener('click', () => {
+      clearAttachedLlmImage();
+      showToast('Photo détachée (non transmise au modèle).');
     });
 
     document.getElementById('save-key-btn').addEventListener('click', saveApiKey);
@@ -658,17 +867,33 @@
       }
     });
 
-    // ── Chat export helpers ─────────────────────────────────────────────────
+    // ── Chat export & revision image helpers ────────────────────────────────
 
-    /** Read all visible chat messages from the DOM. */
+    /** Read all visible chat messages from memory (or DOM fallback). */
     function collectChatMessages() {
+      if (chatLog && chatLog.length > 0) {
+        return chatLog.map((item) => ({
+          role: item.role,
+          text: item.text || '',
+          imageDataUrl: item.imageDataUrl || null
+        }));
+      }
+
       const msgs = [];
       document.querySelectorAll('#chat-messages .message').forEach((el) => {
-        const role = el.classList.contains('user') ? 'user' : 'assistant';
-        // .message-body holds the rendered content; get its innerText for plain text
-        const bodyEl = el.querySelector('.message-body');
-        const text = bodyEl ? bodyEl.innerText.trim() : el.innerText.trim();
-        if (text) msgs.push({ role, text });
+        if (el.classList.contains('reference-image')) {
+          const cap = el.querySelector('.reference-image-caption')?.innerText.trim() || 'Visual Reference';
+          const img = el.querySelector('.reference-image-img');
+          msgs.push({ role: 'image', text: cap, imageDataUrl: img?.src || null });
+        } else {
+          const role = el.classList.contains('user') ? 'user' : 'assistant';
+          const bodyEl = el.querySelector('.message-body');
+          const text = bodyEl ? bodyEl.innerText.trim() : el.innerText.trim();
+          const img = el.querySelector('.message-attached-img');
+          if (text || img?.src) {
+            msgs.push({ role, text, imageDataUrl: img?.src || null });
+          }
+        }
       });
       return msgs;
     }
@@ -685,16 +910,32 @@
       lines.push('');
 
       msgs.forEach((msg) => {
-        if (msg.role === 'user') {
-          lines.push(`## 🧑 You`);
+        if (msg.role === 'image') {
+          lines.push(`### 📷 Visual Reference (Revision)`);
+          if (msg.text) lines.push(`_${msg.text}_`);
+          if (msg.imageDataUrl) {
+            lines.push('');
+            lines.push(`![Reference Image](${msg.imageDataUrl})`);
+          }
+          lines.push('');
+          lines.push('---');
+          lines.push('');
         } else {
-          lines.push(`## 🤖 AI Tutor`);
+          if (msg.role === 'user') {
+            lines.push(`## 🧑 You`);
+          } else {
+            lines.push(`## 🤖 AI Tutor`);
+          }
+          lines.push('');
+          if (msg.text) lines.push(msg.text);
+          if (msg.imageDataUrl) {
+            lines.push('');
+            lines.push(`![Attached Frame](${msg.imageDataUrl})`);
+          }
+          lines.push('');
+          lines.push('---');
+          lines.push('');
         }
-        lines.push('');
-        lines.push(msg.text);
-        lines.push('');
-        lines.push('---');
-        lines.push('');
       });
 
       const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
@@ -712,7 +953,7 @@
       if (!msgs.length) { return; }
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => [null]);
-      const videoTitle = tab?.title?.replace(' - YouTube', '').trim() || '';
+      const videoTitle = tab?.title?.replace(' - YouTube', '').trim() || currentCapture?.videoTitle || '';
 
       await chrome.storage.local.set({
         temp_print_chat: {
@@ -725,15 +966,73 @@
       chrome.tabs.create({ url: chrome.runtime.getURL('popup/pdf-print-chat.html') });
     }
 
-    document.getElementById('export-chat-md-btn').addEventListener('click', () => {
+    document.getElementById('export-chat-md-btn')?.addEventListener('click', () => {
       exportChatAsMarkdown();
     });
 
-    document.getElementById('export-chat-pdf-btn').addEventListener('click', async () => {
+    document.getElementById('export-chat-pdf-btn')?.addEventListener('click', async () => {
       try {
         await exportChatAsPrint();
       } catch (err) {
         console.error('Erreur export chat:', err);
+      }
+    });
+
+    // Pin current screenshot into chat as a visual reference (not sent to AI)
+    document.getElementById('pin-screenshot-btn')?.addEventListener('click', async () => {
+      try {
+        let capture = currentCapture;
+        if (!capture?.dataUrl) {
+          capture = await captureFromYouTubeTab();
+          updateCapturePreview(capture);
+        }
+        if (!capture?.dataUrl) {
+          showToast('Aucune capture vidéo disponible pour l’instant.');
+          return;
+        }
+        const label = capture.annotated ? 'Screenshot annoté (T0)' : `Capture vidéo (T0 @ ${formatTime(capture.currentTime || 0)})`;
+        addImageReferenceToChat(capture.dataUrl, label);
+        showToast('Capture épinglée au chat (référence révision) !');
+      } catch (err) {
+        showToast('Erreur capture: ' + err.message);
+      }
+    });
+
+    // Import a local image file from hard drive into chat as a visual reference (not sent to AI)
+    const fileInput = document.getElementById('chat-photo-file-input');
+    document.getElementById('attach-photo-btn')?.addEventListener('click', () => {
+      fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('Veuillez sélectionner un fichier image valide.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        const dataUrl = loadEvt.target.result;
+        addImageReferenceToChat(dataUrl, `Photo locale : ${file.name}`);
+        showToast('Photo ajoutée au chat (référence révision) !');
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+
+    // Start a fresh chat
+    document.getElementById('new-chat-btn')?.addEventListener('click', () => {
+      if (chatLog.length > 0 && !confirm('Commencer un nouveau chat et effacer la session en cours ?')) {
+        return;
+      }
+      clearChatSession();
+    });
+
+    // Resume notebook chat session
+    document.getElementById('resume-notebook-chat-btn')?.addEventListener('click', () => {
+      if (activeNotebookId) {
+        resumeChatFromNotebook(activeNotebookId);
       }
     });
 
@@ -1073,6 +1372,59 @@
         showToast('Title updated');
       }
     });
+
+    // ── Interactive User Guide listeners ──
+    document.getElementById('restart-guide-btn')?.addEventListener('click', () => {
+      showGuideStep(0);
+    });
+
+    document.getElementById('guide-close-btn')?.addEventListener('click', () => {
+      closeGuide(true);
+    });
+
+    document.getElementById('guide-skip-btn')?.addEventListener('click', () => {
+      closeGuide(true);
+    });
+
+    document.getElementById('guide-prev-btn')?.addEventListener('click', () => {
+      if (currentGuideStep > 0) {
+        showGuideStep(currentGuideStep - 1);
+      }
+    });
+
+    document.getElementById('guide-next-btn')?.addEventListener('click', () => {
+      if (currentGuideStep < GUIDE_STEPS.length - 1) {
+        showGuideStep(currentGuideStep + 1);
+      } else {
+        closeGuide(true);
+      }
+    });
+
+    // Close guide on backdrop click
+    document.getElementById('guide-overlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'guide-overlay') {
+        closeGuide(true);
+      }
+    });
+
+    // Delegate external links inside guide body to open safely in new tab
+    document.getElementById('guide-body')?.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (link && link.href) {
+        e.preventDefault();
+        chrome.tabs.create({ url: link.href });
+      }
+    });
+
+    // ESC key closes guide modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const overlay = document.getElementById('guide-overlay');
+        if (overlay && !overlay.classList.contains('hidden')) {
+          closeGuide(true);
+        }
+      }
+    });
   }
 
   async function saveApiKey() {
@@ -1111,6 +1463,30 @@
     }
   }
 
+  function setAttachedLlmImage(dataUrl, name) {
+    attachedLlmImage = { dataUrl, name };
+    const badge = document.getElementById('llm-image-preview-badge');
+    const nameSpan = document.getElementById('llm-image-name');
+    const attachBtn = document.getElementById('attach-llm-image-btn');
+    if (badge && nameSpan) {
+      nameSpan.textContent = name;
+      badge.style.display = 'flex';
+    }
+    if (attachBtn) {
+      attachBtn.classList.add('has-file');
+    }
+  }
+
+  function clearAttachedLlmImage() {
+    attachedLlmImage = null;
+    const badge = document.getElementById('llm-image-preview-badge');
+    const attachBtn = document.getElementById('attach-llm-image-btn');
+    const fileInput = document.getElementById('llm-image-file-input');
+    if (badge) badge.style.display = 'none';
+    if (attachBtn) attachBtn.classList.remove('has-file');
+    if (fileInput) fileInput.value = '';
+  }
+
   async function sendQuestion() {
     const input = document.getElementById('question-input');
     const question = input.value.trim();
@@ -1124,6 +1500,10 @@
     btn.disabled = true;
     btn.textContent = '...';
 
+    // Capture attached image for LLM if present
+    const pendingLlmImage = attachedLlmImage;
+    clearAttachedLlmImage();
+
     try {
       currentCapture = await ensureCapture();
     } catch (err) {
@@ -1134,7 +1514,8 @@
       return;
     }
 
-    addMessage('user', question);
+    // Display user message in chat, including the attached image if one was provided
+    addMessage('user', question, null, pendingLlmImage ? pendingLlmImage.dataUrl : null);
     input.value = '';
 
     try {
@@ -1187,6 +1568,7 @@
         model,
         question,
         imageDataUrl: sendImage ? currentCapture.dataUrl : null,
+        userImageDataUrl: pendingLlmImage ? pendingLlmImage.dataUrl : null,
         videoId: currentCapture.videoId,
         videoTitle: currentCapture.videoTitle,
         currentTime: currentCapture.currentTime,
@@ -1220,7 +1602,72 @@
     }
   }
 
-  function addMessage(role, text, entryData = null) {
+  function renderImageReferenceInDOM(dataUrl, caption = 'Visual Reference (Revision)') {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'message reference-image';
+
+    const header = document.createElement('div');
+    header.className = 'message-label';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = '📷 Référence Visuelle (Mémo révision · 0 token)';
+    header.appendChild(titleSpan);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'reference-image-del-btn';
+    delBtn.title = 'Remove this image from chat';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => {
+      div.remove();
+      const idx = chatLog.findIndex((m) => m.role === 'image' && m.imageDataUrl === dataUrl);
+      if (idx !== -1) {
+        chatLog.splice(idx, 1);
+        saveChatSession();
+      }
+    });
+    header.appendChild(delBtn);
+    div.appendChild(header);
+
+    if (caption) {
+      const cap = document.createElement('div');
+      cap.className = 'reference-image-caption';
+      cap.textContent = caption;
+      div.appendChild(cap);
+    }
+
+    const img = document.createElement('img');
+    img.className = 'reference-image-img';
+    img.src = dataUrl;
+    img.alt = caption || 'Visual Reference';
+    img.title = 'Click to open in new tab';
+    img.addEventListener('click', () => {
+      const w = window.open('');
+      if (w) {
+        w.document.write(`<body style="margin:0; background:#0f172a; display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${dataUrl}" style="max-width:98%; max-height:98vh; object-fit:contain; border-radius:8px;" /></body>`);
+      }
+    });
+    div.appendChild(img);
+
+    container.appendChild(div);
+    const chatScroll = document.querySelector('.chat-scroll');
+    if (chatScroll) {
+      chatScroll.scrollTop = chatScroll.scrollHeight;
+    }
+    return div;
+  }
+
+  function addImageReferenceToChat(dataUrl, caption = 'Visual Reference (Revision)') {
+    renderImageReferenceInDOM(dataUrl, caption);
+    chatLog.push({
+      role: 'image',
+      text: caption,
+      imageDataUrl: dataUrl
+    });
+    saveChatSession();
+  }
+
+  function renderMessageInDOM(role, text, entryData = null, attachedImageDataUrl = null) {
     const container = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = `message ${role}`;
@@ -1232,12 +1679,35 @@
 
     const content = document.createElement('div');
     content.className = 'message-body';
+    const safeText = text != null ? String(text) : '';
     if (typeof renderMessageContent === 'function') {
-      renderMessageContent(content, text);
+      renderMessageContent(content, safeText);
     } else {
-      content.textContent = text;
+      content.textContent = safeText;
     }
     div.appendChild(content);
+
+    const imgUrl = attachedImageDataUrl || entryData?.imageDataUrl;
+    if (imgUrl) {
+      if (role === 'user' && attachedImageDataUrl) {
+        const tag = document.createElement('div');
+        tag.className = 'message-img-tag';
+        tag.textContent = '🤖 Photo jointe transmise à l’IA';
+        div.appendChild(tag);
+      }
+      const img = document.createElement('img');
+      img.className = 'message-attached-img';
+      img.src = imgUrl;
+      img.alt = 'Attached Frame';
+      img.title = 'Click to open';
+      img.addEventListener('click', () => {
+        const w = window.open('');
+        if (w) {
+          w.document.write(`<body style="margin:0; background:#0f172a; display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${imgUrl}" style="max-width:98%; max-height:98vh; object-fit:contain; border-radius:8px;" /></body>`);
+        }
+      });
+      div.appendChild(img);
+    }
 
     // Copy button
     const copyBtn = document.createElement('button');
@@ -1245,7 +1715,7 @@
     copyBtn.title = 'Copy message';
     copyBtn.textContent = '⎘';
     copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(text).then(() => {
+      navigator.clipboard.writeText(safeText).then(() => {
         copyBtn.textContent = '✓';
         copyBtn.classList.add('message-copy-btn--copied');
         setTimeout(() => {
@@ -1285,6 +1755,193 @@
     if (chatScroll) {
       chatScroll.scrollTop = chatScroll.scrollHeight;
     }
+    return div;
+  }
+
+  function addMessage(role, text, entryData = null, attachedImageDataUrl = null) {
+    const finalImg = attachedImageDataUrl || entryData?.imageDataUrl || null;
+    renderMessageInDOM(role, text, entryData, finalImg);
+    chatLog.push({
+      role,
+      text: text != null ? String(text) : '',
+      imageDataUrl: finalImg,
+      entryData
+    });
+    saveChatSession();
+  }
+
+  async function saveChatSession() {
+    try {
+      await chrome.storage.local.set({
+        activeChatSession: chatLog,
+        activeChatMeta: {
+          videoId: currentCapture?.videoId || null,
+          videoTitle: currentCapture?.videoTitle || null,
+          currentTime: currentCapture?.currentTime || 0
+        }
+      });
+    } catch (err) {
+      console.warn('[YTAITutor] Error saving active chat session:', err);
+    }
+  }
+
+  async function loadChatSession() {
+    try {
+      const stored = await chrome.storage.local.get(['activeChatSession', 'activeChatMeta']);
+      if (Array.isArray(stored.activeChatSession) && stored.activeChatSession.length > 0) {
+        chatLog = [];
+        const container = document.getElementById('chat-messages');
+        if (container) container.innerHTML = '';
+
+        for (const item of stored.activeChatSession) {
+          if (!item) continue;
+          if (item.role === 'image') {
+            if (item.imageDataUrl) {
+              renderImageReferenceInDOM(item.imageDataUrl, item.text || 'Visual Reference');
+              chatLog.push(item);
+            }
+          } else {
+            renderMessageInDOM(item.role || 'assistant', item.text || '', item.entryData || null, item.imageDataUrl || null);
+            chatLog.push(item);
+          }
+        }
+
+        if (stored.activeChatMeta?.videoId && !currentCapture?.videoId) {
+          currentCapture = {
+            ...(currentCapture || {}),
+            ...stored.activeChatMeta
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[YTAITutor] Error restoring chat session:', err);
+    }
+  }
+
+  async function clearChatSession() {
+    chatLog = [];
+    const container = document.getElementById('chat-messages');
+    if (container) container.innerHTML = '';
+    await chrome.storage.local.remove(['activeChatSession', 'activeChatMeta']);
+    showToast('Nouveau chat démarré !');
+  }
+
+  async function resumeChatFromEntry(entry) {
+    if (!entry) return;
+
+    // Switch to Chat tab
+    document.querySelector('.tab[data-panel="chat"]').click();
+
+    // Set video/capture context
+    if (entry.videoId) {
+      currentCapture = {
+        ...(currentCapture || {}),
+        videoId: entry.videoId,
+        videoTitle: entry.videoTitle,
+        currentTime: entry.timestamp || 0,
+        dataUrl: entry.imageDataUrl || currentCapture?.dataUrl || null,
+        imageId: entry.imageId || null
+      };
+      updateCapturePreview(currentCapture);
+    }
+
+    if (entry.explanationLevel) {
+      const levelSelect = document.getElementById('explanation-level');
+      if (levelSelect) levelSelect.value = entry.explanationLevel;
+    }
+
+    // If entry has an image, render it as a reference image for revision
+    if (entry.imageDataUrl) {
+      renderImageReferenceInDOM(
+        entry.imageDataUrl,
+        `Capture @ ${entry.humanTime || formatTime(entry.timestamp)} — ${entry.videoTitle || 'Vidéo'}`
+      );
+      chatLog.push({
+        role: 'image',
+        text: `Capture @ ${entry.humanTime || formatTime(entry.timestamp)}`,
+        imageDataUrl: entry.imageDataUrl
+      });
+    }
+
+    // Render user question
+    renderMessageInDOM('user', entry.question, null, null);
+    chatLog.push({ role: 'user', text: entry.question });
+
+    // Render assistant answer
+    renderMessageInDOM('assistant', entry.answer, entry, null);
+    chatLog.push({ role: 'assistant', text: entry.answer, entryData: entry });
+
+    saveChatSession();
+
+    // Focus input for next question
+    const input = document.getElementById('question-input');
+    if (input) {
+      input.focus();
+      input.placeholder = 'Poser une question de suivi sur ce point...';
+    }
+
+    showToast('Chat repris ! Vous pouvez poser une question de suivi.');
+  }
+
+  async function resumeChatFromNotebook(notebookId) {
+    if (!notebookId) return;
+    const entries = await sendMessage({ action: 'getNotebookEntries', notebookId });
+    const chatEntries = (entries || []).filter((e) => e.type === 'chat');
+
+    if (!chatEntries.length) {
+      showToast('Aucun échange chat dans ce notebook à reprendre.');
+      return;
+    }
+
+    // Switch to Chat tab
+    document.querySelector('.tab[data-panel="chat"]').click();
+
+    // Clear current chat
+    chatLog = [];
+    const container = document.getElementById('chat-messages');
+    if (container) container.innerHTML = '';
+
+    // Populate in chronological order
+    for (const entry of chatEntries) {
+      if (entry.imageDataUrl) {
+        renderImageReferenceInDOM(
+          entry.imageDataUrl,
+          `Capture @ ${entry.humanTime || formatTime(entry.timestamp)} — ${entry.videoTitle || 'Vidéo'}`
+        );
+        chatLog.push({
+          role: 'image',
+          text: `Capture @ ${entry.humanTime || formatTime(entry.timestamp)}`,
+          imageDataUrl: entry.imageDataUrl
+        });
+      }
+
+      renderMessageInDOM('user', entry.question, null, null);
+      chatLog.push({ role: 'user', text: entry.question });
+
+      renderMessageInDOM('assistant', entry.answer, entry, null);
+      chatLog.push({ role: 'assistant', text: entry.answer, entryData: entry });
+    }
+
+    const last = chatEntries[chatEntries.length - 1];
+    if (last?.videoId) {
+      currentCapture = {
+        ...(currentCapture || {}),
+        videoId: last.videoId,
+        videoTitle: last.videoTitle,
+        currentTime: last.timestamp || 0,
+        dataUrl: last.imageDataUrl || null,
+        imageId: last.imageId || null
+      };
+      updateCapturePreview(currentCapture);
+    }
+
+    saveChatSession();
+    const input = document.getElementById('question-input');
+    if (input) {
+      input.focus();
+      input.placeholder = 'Continuer la discussion sur ce notebook...';
+    }
+    showToast(`Session reprise (${chatEntries.length} échanges) !`);
   }
 
   function addSwitchModelPrompt(questionText) {
@@ -1473,6 +2130,17 @@
 
       const actions = document.createElement('div');
       actions.className = 'notebook-card-actions';
+
+      if (entry.type === 'chat') {
+        const resumeBtn = document.createElement('button');
+        resumeBtn.className = 'continue-chat-btn';
+        resumeBtn.textContent = '💬 Continuer';
+        resumeBtn.title = 'Reprendre ce chat dans la fenêtre de discussion';
+        resumeBtn.addEventListener('click', () => {
+          resumeChatFromEntry(entry);
+        });
+        actions.appendChild(resumeBtn);
+      }
 
       if (entry.type === 'note') {
         const editBtn = document.createElement('button');

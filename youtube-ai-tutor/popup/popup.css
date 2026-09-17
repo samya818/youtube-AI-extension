@@ -372,7 +372,90 @@ body {
 
 .input-area {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
+}
+
+.input-icon-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 6px;
+  width: 34px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  padding: 0;
+}
+
+.input-icon-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #93c5fd;
+}
+
+.input-icon-btn.has-file {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+/* Badge for attached LLM image above the input */
+.llm-attached-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  color: #bfdbfe;
+}
+
+.llm-attached-badge .badge-icon {
+  font-size: 12px;
+}
+
+.llm-attached-badge .badge-name {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.llm-attached-badge .badge-tag {
+  background: #2563eb;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.llm-attached-badge button {
+  background: none;
+  border: none;
+  color: #93c5fd;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 11px;
+  margin-left: auto;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.llm-attached-badge button:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .chat-footer .input-area { margin-bottom: 8px; }
@@ -426,18 +509,140 @@ body {
 .secondary-btn.compact { width: auto; }
 .secondary-btn:hover { background: rgba(255,255,255,0.2); }
 
-/* Chat export bar — row of action buttons below the input */
+/* Chat action bar — clean 2x2 grid for comfortable readability */
+.chat-action-bar,
 .chat-export-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
+.chat-action-bar .secondary-btn,
 .chat-export-bar .secondary-btn {
-  width: auto;
-  flex: 1;
+  width: 100%;
   padding: 6px 8px;
-  font-size: 11.5px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Reference image cards in chat stream (manual insertion for revision) */
+.message.reference-image {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.message.reference-image .message-label {
+  color: #fbbf24;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.reference-image-caption {
+  font-size: 12px;
+  color: #fef3c7;
+  margin-bottom: 8px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.reference-image-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: block;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.reference-image-img:hover {
+  transform: scale(1.01);
+}
+
+.reference-image-del-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.reference-image-del-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Inline image in normal messages */
+.message-attached-img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: block;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.message-img-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #bfdbfe;
+  background: rgba(30, 64, 175, 0.5);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: 4px;
+  padding: 2px 7px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.02em;
+}
+
+/* Continue chat button in notebook entry card */
+.continue-chat-btn {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.continue-chat-btn:hover {
+  background: rgba(59, 130, 246, 0.35) !important;
+  color: #ffffff !important;
 }
 
 
@@ -695,5 +900,228 @@ select option {
   padding: 8px 10px;
   font-size: 12px;
   text-align: center;
+}
+
+/* ==========================================================================
+   Interactive User Guide Walkthrough
+   ========================================================================== */
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: guideFadeIn 0.2s ease-out;
+}
+
+.guide-overlay.hidden {
+  display: none !important;
+}
+
+.guide-card {
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.15);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  color: #f8fafc;
+  animation: guideSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.guide-step-tag {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.guide-close-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+
+.guide-close-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.guide-body {
+  min-height: 170px;
+}
+
+.guide-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.guide-icon {
+  font-size: 20px;
+}
+
+.guide-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.guide-desc {
+  font-size: 12.5px;
+  color: #cbd5e1;
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+
+.guide-box {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.guide-box strong {
+  color: #93c5fd;
+}
+
+.guide-box a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.guide-box ol, .guide-box ul {
+  padding-left: 16px;
+  margin: 6px 0 0;
+}
+
+.guide-box li {
+  margin-bottom: 4px;
+}
+
+.guide-highlight-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b;
+  padding: 6px 8px;
+  border-radius: 4px;
+  line-height: 1.45;
+}
+
+.guide-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0 14px;
+}
+
+.guide-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+
+.guide-dot.active {
+  background: #3b82f6;
+  transform: scale(1.3);
+}
+
+.guide-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guide-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: 0.15s;
+}
+
+.guide-btn.primary {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.guide-btn.primary:hover {
+  background: #2563eb;
+}
+
+.guide-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.guide-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.guide-btn.text-btn {
+  background: none;
+  color: #94a3b8;
+  padding: 6px 8px;
+}
+
+.guide-btn.text-btn:hover {
+  color: #f8fafc;
+}
+
+.guide-nav-btns {
+  display: flex;
+  gap: 6px;
+}
+
+@keyframes guideFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes guideSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 

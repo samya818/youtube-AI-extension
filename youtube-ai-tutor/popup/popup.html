@@ -25,27 +25,42 @@
         <button id="refresh-transcript-btn" class="secondary-btn" type="button" title="Ignore cache and reload the transcript">↻ Force refresh transcript</button>
       </div>
       <button id="recapture-btn" class="link-btn recapture-btn" type="button" style="display:none;">↻ Recapture</button>
-      <div class="level-select">
-        <select id="explanation-level">
+      <div class="level-select" style="display:flex; justify-content:space-between; align-items:center;">
+        <select id="explanation-level" style="flex:1; margin-right:8px;">
           <option value="ELI5">ELI5 (5 years old)</option>
           <option value="Lycée">High School</option>
           <option value="Licence" selected>University / Bachelor</option>
           <option value="Expert">Expert</option>
         </select>
+        <button id="new-chat-btn" class="secondary-btn compact" type="button" title="Start a fresh chat" style="white-space:nowrap; padding: 5px 8px; font-size: 11px;">🧹 New Chat</button>
       </div>
       <div id="chat-messages" class="chat-messages"></div>
     </div>
     <button id="quick-note-btn" class="floating-note-btn" type="button" title="Create a note linked to capture">📝</button>
     <div class="chat-footer">
       <div id="model-indicator" class="model-indicator">Model used: —</div>
+      <!-- Small chip badge when an image is attached to be sent to the AI model -->
+      <div id="llm-image-preview-badge" class="llm-attached-badge" style="display:none;">
+        <span class="badge-icon">📎</span>
+        <span id="llm-image-name" class="badge-name">image.png</span>
+        <span class="badge-tag">Sera envoyée à l'IA</span>
+        <button id="remove-llm-image-btn" type="button" title="Retirer cette image">✕</button>
+      </div>
       <div class="input-area">
+        <button id="attach-llm-image-btn" class="input-icon-btn" type="button" title="Joindre une photo de votre PC pour qu'elle soit analysée par l'IA">📎</button>
         <input type="text" id="question-input" placeholder="Ask your question about this frame...">
         <button id="send-btn">Send</button>
       </div>
-      <div class="chat-export-bar">
-        <button id="export-chat-md-btn" class="secondary-btn" title="Download chat as Markdown">⬇ MD</button>
-        <button id="export-chat-pdf-btn" class="secondary-btn" title="Open print-friendly page (save as PDF)">🖨 Print / PDF</button>
+      <!-- Hidden file input for images sent to the LLM model -->
+      <input type="file" id="llm-image-file-input" accept="image/*" style="display:none;">
+      <div class="chat-action-bar">
+        <button id="pin-screenshot-btn" class="secondary-btn" title="Épingler cette capture dans le fil pour révision / PDF (NON envoyé à l'IA, 0 token)">📌 Épingler capture</button>
+        <button id="attach-photo-btn" class="secondary-btn" title="Ajouter une photo de votre PC dans le fil pour révision / PDF (NON envoyée à l'IA, 0 token)">🖼 Photo mémo</button>
+        <button id="export-chat-md-btn" class="secondary-btn" title="Télécharger la discussion au format Markdown">⬇ Export MD</button>
+        <button id="export-chat-pdf-btn" class="secondary-btn" title="Ouvrir la vue d'impression (sauvegarder en PDF)">🖨 Export PDF</button>
       </div>
+      <!-- Hidden file input for disk photo memo (display only, not sent to AI) -->
+      <input type="file" id="chat-photo-file-input" accept="image/*" style="display:none;">
     </div>
   </div>
 
@@ -69,6 +84,7 @@
           <option value="pdf">PDF</option>
         </select>
         <button id="export-notebook-btn" class="primary-btn">📥 Export</button>
+        <button id="resume-notebook-chat-btn" class="secondary-btn compact" title="Resume notebook chat session">💬 Continue Chat</button>
         <button id="back-to-notebooks-btn" class="secondary-btn compact">⬅ Back</button>
       </div>
     </div>
@@ -126,6 +142,16 @@
       </div>
     </section>
     
+    <section class="settings-inline" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h4 style="margin:0; font-size:13px;">Onboarding & Tutorial</h4>
+          <p style="font-size:11.5px; color:#94a3b8; margin:3px 0 0;">Need a refresher? Replay the step-by-step interactive guide.</p>
+        </div>
+        <button id="restart-guide-btn" class="secondary-btn compact" type="button" style="white-space:nowrap; padding:6px 12px; font-weight:600;">📖 User Guide</button>
+      </div>
+    </section>
+    
     <section class="about-section" style="margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #cbd5e1; text-align: center; line-height: 1.6; flex-shrink: 0;">
       <p style="margin-bottom: 4px;">Created by <strong>Samya Loukili</strong> — Send me a nice message if u find it useful 🎀</p>
       <p>
@@ -135,6 +161,26 @@
     </section>
   </div>
 
+  <!-- Interactive User Guide Modal -->
+  <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true">
+    <div class="guide-card">
+      <div class="guide-header">
+        <span class="guide-step-tag" id="guide-step-indicator">Step 1 of 5</span>
+        <button id="guide-close-btn" class="guide-close-btn" type="button" title="Close Guide">✕</button>
+      </div>
+      <div class="guide-body" id="guide-body">
+        <!-- Injected dynamically by popup.js -->
+      </div>
+      <div class="guide-dots" id="guide-dots"></div>
+      <div class="guide-footer">
+        <button id="guide-skip-btn" class="guide-btn text-btn" type="button">Skip Guide</button>
+        <div class="guide-nav-btns">
+          <button id="guide-prev-btn" class="guide-btn secondary" type="button">Back</button>
+          <button id="guide-next-btn" class="guide-btn primary" type="button">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div id="modal-card" class="modal-card"></div>

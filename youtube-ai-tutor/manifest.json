@@ -6,6 +6,7 @@
   "author": "Samya Loukili",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "activeTab",
     "scripting",
     "webNavigation",

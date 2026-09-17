@@ -1447,7 +1447,7 @@ async function callGemini(systemPrompt, question, frameImages, videoContext, api
       parts.push({ text: `\n[Image: ${frame.label}]` });
       parts.push({
         inline_data: {
-          mime_type: 'image/jpeg',
+          mime_type: frame.mimeType || 'image/jpeg',
           data: frame.data
         }
       });
@@ -1489,14 +1489,14 @@ async function callGemini(systemPrompt, question, frameImages, videoContext, api
   }
 }
 
-function normalizeBase64ImageUrl(base64) {
+function normalizeBase64ImageUrl(base64, mimeType = 'image/jpeg') {
   if (!base64) {
     return '';
   }
   if (base64.startsWith('data:image/')) {
     return base64;
   }
-  return `data:image/jpeg;base64,${base64}`;
+  return `data:${mimeType};base64,${base64}`;
 }
 
 function formatOpenAIMessageContent(systemPrompt, question, frameImages, videoContext) {
@@ -1504,7 +1504,7 @@ function formatOpenAIMessageContent(systemPrompt, question, frameImages, videoCo
   for (const frame of frameImages) {
     content.push({
       type: 'image_url',
-      image_url: { url: normalizeBase64ImageUrl(frame.data) }
+      image_url: { url: normalizeBase64ImageUrl(frame.data, frame.mimeType) }
     });
   }
   content.push({
@@ -1521,7 +1521,9 @@ function formatAnthropicMessageContent(systemPrompt, question, frameImages, vide
       type: 'image',
       source: {
         type: 'base64',
-        media_type: 'image/jpeg',
+        media_type: (frame.mimeType && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(frame.mimeType))
+          ? frame.mimeType
+          : 'image/jpeg',
         data: frame.data
       }
     });
@@ -2084,6 +2086,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           const {
             question,
             imageDataUrl,
+            userImageDataUrl,
             videoId,
             videoTitle,
             explanationLevel,
@@ -2219,6 +2222,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           });
 
           const frameImages = await buildGeminiFrameImages(captureMeta, imageDataUrl);
+
+          if (userImageDataUrl) {
+            const mimeMatch = userImageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const userBase64 = userImageDataUrl.includes(',')
+              ? userImageDataUrl.split(',')[1]
+              : userImageDataUrl;
+            frameImages.push({
+              label: 'Image additionnelle fournie par l\'utilisateur (PC)',
+              data: userBase64,
+              mimeType,
+              time: resolvedCurrentTime,
+              offset: 999
+            });
+          }
+
           const systemPrompt = buildSystemPrompt(
             explanationLevel,
             frameImages.map((frame) => frame.label)

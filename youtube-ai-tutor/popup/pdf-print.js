@@ -101,5 +101,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 window.onafterprint = function() {
   chrome.storage.local.remove('temp_print_notebook');
-  window.close();
 };
