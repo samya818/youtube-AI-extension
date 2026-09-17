@@ -9,20 +9,106 @@
   let isLoading = false;
   let activeNotebookId = null;
   let skipImageModelCheck = false;
+  let userDefaultPreferences = {
+    defaultFrameMode: 't0-only',
+    defaultTranscriptContext: 'standard'
+  };
 
   /** @type {Record<string, { beforeSec: number, afterSec: number, preferFull: boolean }>} */
   const TRANSCRIPT_PRIORITY_PRESETS = {
     economical: { beforeSec: 30, afterSec: 15, preferFull: false },
     standard: { beforeSec: 60, afterSec: 30, preferFull: false },
-    complete: { beforeSec: 120, afterSec: 60, preferFull: true }
+    complete: { beforeSec: 120, afterSec: 60, preferFull: true },
+    global: { beforeSec: 60, afterSec: 30, preferFull: true },
+    'global-local': { beforeSec: 60, afterSec: 30, preferFull: true }
   };
 
-  const PROVIDER_MODELS = {
-    gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-image', 'gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-3.5-flash'],
-    openai: ['gpt-4o', 'gpt-4o-mini'],
-    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
-    mistral: ['mistral-large-latest']
+  /** Fallback model lists — used when no API key is stored or the live fetch fails. */
+  const FALLBACK_MODELS = {
+    gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+    mistral: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest']
   };
+
+  // Backward-compat alias (some code still references PROVIDER_MODELS)
+  const PROVIDER_MODELS = FALLBACK_MODELS;
+
+  /** Cache live model lists for 1 hour to avoid redundant API calls. */
+  const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
+
+  /**
+   * Returns the live model list for a provider, fetched from the provider's API.
+   * Results are cached in chrome.storage.local for MODEL_CACHE_TTL_MS.
+   * Falls back to FALLBACK_MODELS on any error or when no key is available.
+   * @param {string} provider
+   * @param {string|null} apiKey
+   * @returns {Promise<string[]>}
+   */
+  async function fetchModelsForProvider(provider, apiKey) {
+    if (!apiKey) {
+      return FALLBACK_MODELS[provider] || FALLBACK_MODELS.gemini;
+    }
+
+    // Return cached list if still fresh
+    const cacheKey = `modelCache_${provider}`;
+    try {
+      const cached = await chrome.storage.local.get(cacheKey);
+      const entry = cached[cacheKey];
+      if (entry && (Date.now() - entry.ts) < MODEL_CACHE_TTL_MS && entry.models?.length) {
+        return entry.models;
+      }
+    } catch (_) { /* ignore */ }
+
+    let models = null;
+    try {
+      if (provider === 'gemini') {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          models = (data.models || [])
+            .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+            .map((m) => m.name.replace('models/', ''))
+            .filter(Boolean)
+            .sort();
+        }
+      } else if (provider === 'openai') {
+        const res = await fetch('https://api.openai.com/v1/models', {
+          headers: { Authorization: `Bearer ${apiKey}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          models = (data.data || [])
+            .map((m) => m.id)
+            .filter((id) => /^gpt-/.test(id))
+            .sort()
+            .reverse();
+        }
+      } else if (provider === 'mistral') {
+        const res = await fetch('https://api.mistral.ai/v1/models', {
+          headers: { Authorization: `Bearer ${apiKey}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          models = (data.data || []).map((m) => m.id).sort().reverse();
+        }
+      }
+      // Anthropic has no public list endpoint — always use fallback
+    } catch (err) {
+      console.warn(`[YTAITutor] Could not fetch models for ${provider}:`, err.message);
+    }
+
+    if (models && models.length) {
+      try {
+        await chrome.storage.local.set({ [cacheKey]: { models, ts: Date.now() } });
+      } catch (_) { /* ignore */ }
+      return models;
+    }
+
+    return FALLBACK_MODELS[provider] || FALLBACK_MODELS.gemini;
+  }
 
   function isImageRequest(text) {
     if (!text) {
@@ -43,20 +129,39 @@
     return hasImageNoun && hasGenerationVerb;
   }
 
-  function renderModelOptions(provider, selectedModel) {
+  function renderModelOptions(provider, selectedModel, modelList) {
     const modelSelect = document.getElementById('model-select');
     modelSelect.innerHTML = '';
-    const models = PROVIDER_MODELS[provider] || PROVIDER_MODELS.gemini;
+
+    // Normalize: strip the "models/" prefix that the Gemini API returns
+    const normalize = (m) => (m ? m.replace(/^models\//, '') : m);
+    const normalizedSelected = normalize(selectedModel);
+
+    let models = (modelList || FALLBACK_MODELS[provider] || FALLBACK_MODELS.gemini)
+      .map(normalize)
+      .filter(Boolean);
+
+    // If the saved model is not in the list (e.g. custom/new model), add it at the top
+    if (normalizedSelected && !models.includes(normalizedSelected)) {
+      models = [normalizedSelected, ...models];
+    }
+
     models.forEach((model) => {
       const option = document.createElement('option');
       option.value = model;
       option.textContent = model;
-      if (model === selectedModel) {
+      if (model === normalizedSelected) {
         option.selected = true;
       }
       modelSelect.appendChild(option);
     });
+
+    // Force-set the value in case no option was matched (fallback-safe)
+    if (normalizedSelected) {
+      modelSelect.value = normalizedSelected;
+    }
   }
+
 
   function updateModelIndicator(provider, model, overrideNote = '') {
     const indicator = document.getElementById('model-indicator');
@@ -89,16 +194,18 @@
   }
 
   function getTranscriptContextSettings() {
-    const preset = TRANSCRIPT_PRIORITY_PRESETS.standard;
-    const priority = currentCapture?.transcriptPriority || 'standard';
+    const defaultPriority = userDefaultPreferences?.defaultTranscriptContext || 'standard';
+    const preset = TRANSCRIPT_PRIORITY_PRESETS[defaultPriority] || TRANSCRIPT_PRIORITY_PRESETS.standard;
+    const priority = currentCapture?.transcriptPriority || defaultPriority;
     const presetValues = TRANSCRIPT_PRIORITY_PRESETS[priority] || preset;
+    const defaultMode = priority === 'global' ? 'global' : priority === 'global-local' ? 'global-local' : 'local';
 
     return {
       beforeSec: currentCapture?.beforeSec ?? presetValues.beforeSec,
       afterSec: currentCapture?.afterSec ?? presetValues.afterSec,
       preferFull: currentCapture?.transcriptPreferFull ?? presetValues.preferFull,
       priority,
-      transcriptMode: currentCapture?.transcriptMode || 'local'
+      transcriptMode: currentCapture?.transcriptMode || defaultMode
     };
   }
 
@@ -385,15 +492,17 @@
       ]);
 
       const provider = settings?.provider || apiKeysResponse?.activeProvider || 'gemini';
-      const model = settings?.model || apiKeysResponse?.apiKeys?.[provider]?.model || PROVIDER_MODELS[provider]?.[0] || PROVIDER_MODELS.gemini[0];
+      const storedKey = apiKeysResponse?.apiKeys?.[provider]?.key;
+      const model = settings?.model || apiKeysResponse?.apiKeys?.[provider]?.model || FALLBACK_MODELS[provider]?.[0] || FALLBACK_MODELS.gemini[0];
 
       document.getElementById('provider-selector').value = provider;
       document.getElementById('current-provider-label').textContent = provider;
-      renderModelOptions(provider, model);
-      renderSavedKeysList(apiKeysResponse?.apiKeys || {}, apiKeysResponse?.activeProvider || provider);
-      updateModelIndicator(provider, model);
 
-      const storedKey = apiKeysResponse?.apiKeys?.[provider]?.key;
+      // Render with fallback immediately, then refresh with live list
+      renderModelOptions(provider, model);
+      updateModelIndicator(provider, model);
+      renderSavedKeysList(apiKeysResponse?.apiKeys || {}, apiKeysResponse?.activeProvider || provider);
+
       const input = document.getElementById('api-key-input');
       if (storedKey) {
         input.value = '••••••••••••••••';
@@ -402,12 +511,43 @@
         input.value = '';
         input.dataset.stored = 'false';
       }
+
+      // Async: fetch live model list and refresh the dropdown WITHOUT overwriting the user's current selection
+      fetchModelsForProvider(provider, storedKey).then((liveModels) => {
+        // Read the CURRENT selection (user may have changed it while the fetch was in flight)
+        const currentSelection = document.getElementById('model-select').value || model;
+        renderModelOptions(provider, currentSelection, liveModels);
+      });
+
+      // Load user default preferences
+      const prefs = await chrome.storage.local.get('defaultPreferences');
+      if (prefs?.defaultPreferences) {
+        userDefaultPreferences = { ...userDefaultPreferences, ...prefs.defaultPreferences };
+      }
+      const frameModeSelect = document.getElementById('default-frame-mode-select');
+      if (frameModeSelect) {
+        frameModeSelect.value = userDefaultPreferences.defaultFrameMode || 't0-only';
+      }
+      const contextSelect = document.getElementById('default-transcript-context-select');
+      if (contextSelect) {
+        contextSelect.value = userDefaultPreferences.defaultTranscriptContext || 'standard';
+      }
     } catch (err) {
       console.error('Erreur chargement settings:', err);
     }
   }
 
   function setupEventListeners() {
+    document.getElementById('default-frame-mode-select')?.addEventListener('change', async (e) => {
+      userDefaultPreferences.defaultFrameMode = e.target.value;
+      await chrome.storage.local.set({ defaultPreferences: userDefaultPreferences });
+    });
+
+    document.getElementById('default-transcript-context-select')?.addEventListener('change', async (e) => {
+      userDefaultPreferences.defaultTranscriptContext = e.target.value;
+      await chrome.storage.local.set({ defaultPreferences: userDefaultPreferences });
+    });
+
     document.getElementById('send-btn').addEventListener('click', sendQuestion);
     document.getElementById('question-input').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -419,20 +559,44 @@
     document.getElementById('provider-selector').addEventListener('change', async (e) => {
       const provider = e.target.value;
       document.getElementById('current-provider-label').textContent = provider;
-      renderModelOptions(provider, PROVIDER_MODELS[provider]?.[0]);
-      updateModelIndicator(provider, PROVIDER_MODELS[provider]?.[0]);
+
+      // Show a provisional fallback immediately while we load saved state
+      const fallbackModel = FALLBACK_MODELS[provider]?.[0];
+      renderModelOptions(provider, fallbackModel);
+      updateModelIndicator(provider, fallbackModel);
+
       try {
-        await sendMessage({ action: 'saveSettings', provider, model: document.getElementById('model-select').value });
         const apiKeysResponse = await sendMessage({ action: 'getApiKeys' });
-        renderSavedKeysList(apiKeysResponse?.apiKeys || {}, apiKeysResponse?.activeProvider || provider);
         const storedKey = apiKeysResponse?.apiKeys?.[provider]?.key;
+
+        // Use the previously saved model for this provider, fall back to default
+        const savedModel = apiKeysResponse?.apiKeys?.[provider]?.model || fallbackModel;
+
+        renderSavedKeysList(apiKeysResponse?.apiKeys || {}, apiKeysResponse?.activeProvider || provider);
         const input = document.getElementById('api-key-input');
         input.value = storedKey ? '••••••••••••••••' : '';
         input.dataset.stored = storedKey ? 'true' : 'false';
+
+        // Save provider switch with its own saved model (not the previous provider's selection)
+        await sendMessage({ action: 'saveSettings', provider, model: savedModel });
+
+        // Render fallback list with saved model pre-selected, then refresh with live data
+        renderModelOptions(provider, savedModel);
+        updateModelIndicator(provider, savedModel);
+
+        const liveModels = await fetchModelsForProvider(provider, storedKey);
+        // Re-read in case user changed selection during the fetch
+        const currentSel = document.getElementById('model-select').value || savedModel;
+        renderModelOptions(provider, currentSel, liveModels);
+        updateModelIndicator(provider, document.getElementById('model-select').value || currentSel);
+
+        const refreshedKeys = await sendMessage({ action: 'getApiKeys' });
+        renderSavedKeysList(refreshedKeys?.apiKeys || {}, provider);
       } catch (err) {
         console.error('Erreur changement provider:', err);
       }
     });
+
 
     document.getElementById('model-select').addEventListener('change', async (e) => {
       try {
@@ -444,10 +608,37 @@
           model: selectedModel,
           provider
         });
+        // Sync saved-keys list so the model label stays up to date
+        const apiKeysResponse = await sendMessage({ action: 'getApiKeys' });
+        renderSavedKeysList(apiKeysResponse?.apiKeys || {}, provider);
       } catch (err) {
         console.error('Erreur sauvegarde modèle:', err);
       }
     });
+
+    document.getElementById('refresh-models-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('refresh-models-btn');
+      const provider = document.getElementById('provider-selector').value;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        // Bust the cache for this provider
+        await chrome.storage.local.remove(`modelCache_${provider}`);
+        const apiKeysResponse = await sendMessage({ action: 'getApiKeys' });
+        const storedKey = apiKeysResponse?.apiKeys?.[provider]?.key;
+        const currentModel = document.getElementById('model-select').value;
+        const liveModels = await fetchModelsForProvider(provider, storedKey);
+        renderModelOptions(provider, currentModel, liveModels);
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = '↻ Refresh'; }, 1500);
+      } catch (err) {
+        console.error('Erreur refresh models:', err);
+        btn.textContent = '↻ Refresh';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
 
     document.getElementById('annotate-btn').addEventListener('click', openAnnotationPanel);
     document.getElementById('refresh-transcript-btn').addEventListener('click', refreshTranscript);
@@ -467,16 +658,86 @@
       }
     });
 
-    document.getElementById('clear-overlay-btn').addEventListener('click', async () => {
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab?.id) {
-          await chrome.tabs.sendMessage(tab.id, { action: 'clearOverlay' });
+    // ── Chat export helpers ─────────────────────────────────────────────────
+
+    /** Read all visible chat messages from the DOM. */
+    function collectChatMessages() {
+      const msgs = [];
+      document.querySelectorAll('#chat-messages .message').forEach((el) => {
+        const role = el.classList.contains('user') ? 'user' : 'assistant';
+        // .message-body holds the rendered content; get its innerText for plain text
+        const bodyEl = el.querySelector('.message-body');
+        const text = bodyEl ? bodyEl.innerText.trim() : el.innerText.trim();
+        if (text) msgs.push({ role, text });
+      });
+      return msgs;
+    }
+
+    /** Download current chat as a .md file. */
+    function exportChatAsMarkdown() {
+      const msgs = collectChatMessages();
+      if (!msgs.length) { return; }
+
+      const lines = [];
+      const now = new Date().toLocaleString();
+      lines.push(`# AI Tutor Chat Export`);
+      lines.push(`_Exported on ${now}_`);
+      lines.push('');
+
+      msgs.forEach((msg) => {
+        if (msg.role === 'user') {
+          lines.push(`## 🧑 You`);
+        } else {
+          lines.push(`## 🤖 AI Tutor`);
         }
+        lines.push('');
+        lines.push(msg.text);
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      });
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-export-${Date.now()}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /** Open a print-friendly page with the current chat (→ Save as PDF). */
+    async function exportChatAsPrint() {
+      const msgs = collectChatMessages();
+      if (!msgs.length) { return; }
+
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => [null]);
+      const videoTitle = tab?.title?.replace(' - YouTube', '').trim() || '';
+
+      await chrome.storage.local.set({
+        temp_print_chat: {
+          messages: msgs,
+          videoTitle,
+          exportedAt: Date.now()
+        }
+      });
+
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup/pdf-print-chat.html') });
+    }
+
+    document.getElementById('export-chat-md-btn').addEventListener('click', () => {
+      exportChatAsMarkdown();
+    });
+
+    document.getElementById('export-chat-pdf-btn').addEventListener('click', async () => {
+      try {
+        await exportChatAsPrint();
       } catch (err) {
-        console.error('Erreur clear overlay:', err);
+        console.error('Erreur export chat:', err);
       }
     });
+
+
 
     document.getElementById('notebook-search').addEventListener('input', debounce(async (e) => {
       try {
@@ -916,13 +1177,16 @@
         updateTranscriptStatus(currentCapture, false);
       }
 
+      const effectiveFrameMode = currentCapture?.frameSendMode || userDefaultPreferences?.defaultFrameMode || 't0-only';
+      const sendImage = effectiveFrameMode !== 'none';
+
       const ctx = getTranscriptContextSettings();
       const response = await sendMessage({
         action: 'askLLM',
         provider,
         model,
         question,
-        imageDataUrl: currentCapture.dataUrl,
+        imageDataUrl: sendImage ? currentCapture.dataUrl : null,
         videoId: currentCapture.videoId,
         videoTitle: currentCapture.videoTitle,
         currentTime: currentCapture.currentTime,
@@ -941,32 +1205,11 @@
           question,
           answer: response.text,
           explanationLevel: level,
-          overlay: response.overlay,
           videoId: currentCapture.videoId,
           videoTitle: currentCapture.videoTitle,
           timestamp: currentCapture.currentTime,
           imageId: response.imageId || currentCapture.imageId
         });
-
-        if (response.overlay && response.overlay.length > 0) {
-          const youtubeTabs = await chrome.tabs.query({
-            url: ['*://www.youtube.com/*', '*://youtube.com/*']
-          });
-          const targetTab = youtubeTabs.find((tab) =>
-            getVideoIdFromUrl(tab.url) === currentCapture.videoId
-          ) || youtubeTabs.find((tab) => isYouTubeVideoUrl(tab.url));
-
-          if (targetTab?.id) {
-            try {
-              await chrome.tabs.sendMessage(targetTab.id, {
-                action: 'showOverlay',
-                elements: response.overlay
-              });
-            } catch {
-              addMessage('assistant', '(Overlay not displayed — go back to the YouTube tab)');
-            }
-          }
-        }
       }
     } catch (err) {
       addMessage('assistant', 'Network error: ' + err.message);
@@ -995,6 +1238,26 @@
       content.textContent = text;
     }
     div.appendChild(content);
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'message-copy-btn';
+    copyBtn.title = 'Copy message';
+    copyBtn.textContent = '⎘';
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = '✓';
+        copyBtn.classList.add('message-copy-btn--copied');
+        setTimeout(() => {
+          copyBtn.textContent = '⎘';
+          copyBtn.classList.remove('message-copy-btn--copied');
+        }, 1500);
+      }).catch(() => {
+        copyBtn.textContent = '✗';
+        setTimeout(() => { copyBtn.textContent = '⎘'; }, 1500);
+      });
+    });
+    div.appendChild(copyBtn);
 
     if (role === 'assistant' && entryData) {
       const actions = document.createElement('div');

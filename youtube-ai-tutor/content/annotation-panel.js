@@ -2,11 +2,13 @@
  * @file Modal annotation panel for multi-frame capture review.
  */
 
-/** @type {Record<string, { beforeSec: number, afterSec: number, preferFull: boolean }>} */
+/** @type {Record<string, { beforeSec: number, afterSec: number, preferFull: boolean, mode: string }>} */
 const ANNOTATION_TRANSCRIPT_PRESETS = {
-  economical: { beforeSec: 30, afterSec: 15, preferFull: false },
-  standard: { beforeSec: 60, afterSec: 30, preferFull: false },
-  complete: { beforeSec: 120, afterSec: 60, preferFull: true }
+  economical: { beforeSec: 30, afterSec: 15, preferFull: false, mode: 'local' },
+  standard: { beforeSec: 60, afterSec: 30, preferFull: false, mode: 'local' },
+  complete: { beforeSec: 120, afterSec: 60, preferFull: true, mode: 'local' },
+  global: { beforeSec: 60, afterSec: 30, preferFull: true, mode: 'global' },
+  'global-local': { beforeSec: 60, afterSec: 30, preferFull: true, mode: 'global-local' }
 };
 
 /**
@@ -81,7 +83,7 @@ class AnnotationPanel {
    * @param {object|null} transcriptData
    * @param {HTMLVideoElement|null} videoElement
    */
-  constructor(frames, videoId, videoTitle, currentTime, transcriptData = null, videoElement = null) {
+  constructor(frames, videoId, videoTitle, currentTime, transcriptData = null, videoElement = null, userDefaults = null) {
     this.frames = frames;
     this.videoId = videoId;
     this.videoTitle = videoTitle;
@@ -93,14 +95,20 @@ class AnnotationPanel {
     this.panel = null;
     this.thumbElements = [];
     this.frameAnnotations = this.frames.map(() => []);
-    this.frameSendMode = 't0-only';
+
+    // Apply user default preferences if configured
+    this.frameSendMode = userDefaults?.defaultFrameMode || 't0-only';
     this.frameBeforeOffset = 6;
     this.frameAfterOffset = 6;
-    this.transcriptPriority = 'standard';
-    this.transcriptMode = 'local';
-    this.beforeSec = 60;
-    this.afterSec = 30;
-    this.transcriptPreferFull = false;
+
+    const initialPriority = userDefaults?.defaultTranscriptContext || 'standard';
+    this.transcriptPriority = initialPriority;
+    const preset = ANNOTATION_TRANSCRIPT_PRESETS[initialPriority] || ANNOTATION_TRANSCRIPT_PRESETS.standard;
+    this.beforeSec = preset.beforeSec;
+    this.afterSec = preset.afterSec;
+    this.transcriptPreferFull = preset.preferFull;
+    this.transcriptMode = preset.mode || 'local';
+
     this.isRecapturing = false;
     this.previewDebounceTimer = null;
 
@@ -217,7 +225,7 @@ class AnnotationPanel {
       const opt = document.createElement('option');
       opt.value = value;
       opt.textContent = label;
-      if (value === 't0-only') {
+      if (value === this.frameSendMode) {
         opt.selected = true;
       }
       frameSendSelect.appendChild(opt);
@@ -233,10 +241,48 @@ class AnnotationPanel {
     const canvasContainer = document.createElement('div');
     canvasContainer.style.cssText = 'flex: 1; display: flex; justify-content: center; align-items: center; padding: 0 20px; min-height: 300px; background: #0f0f0f; overflow: auto;';
 
+    // Zoom controls + state for the editor canvas
+    const zoomWrap = document.createElement('div');
+    zoomWrap.style.cssText = 'position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;';
+
+    const zoomToolbar = document.createElement('div');
+    zoomToolbar.style.cssText = 'display:flex; gap:8px; align-items:center;';
+
+    const zoomOutBtn = document.createElement('button');
+    zoomOutBtn.type = 'button';
+    zoomOutBtn.textContent = '−';
+    zoomOutBtn.style.cssText = 'padding: 6px 10px; background:#333; color:#fff; border:none; border-radius:6px; cursor:pointer;';
+
+    const zoomInBtn = document.createElement('button');
+    zoomInBtn.type = 'button';
+    zoomInBtn.textContent = '+';
+    zoomInBtn.style.cssText = 'padding: 6px 10px; background:#333; color:#fff; border:none; border-radius:6px; cursor:pointer;';
+
+    const zoomResetBtn = document.createElement('button');
+    zoomResetBtn.type = 'button';
+    zoomResetBtn.textContent = 'Reset';
+    zoomResetBtn.style.cssText = 'padding: 6px 10px; background:#444; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;';
+
+    const zoomLabel = document.createElement('span');
+    zoomLabel.id = 'ytaitutor-zoom-label';
+    zoomLabel.textContent = '100%';
+    zoomLabel.style.cssText = 'color:#aaa; font-size:12px; min-width:56px; text-align:center;';
+
+    zoomToolbar.appendChild(zoomOutBtn);
+    zoomToolbar.appendChild(zoomInBtn);
+    zoomToolbar.appendChild(zoomResetBtn);
+    zoomToolbar.appendChild(zoomLabel);
+
     const canvas = document.createElement('canvas');
     canvas.id = 'ytaitutor-annotation-canvas';
-    canvas.style.cssText = 'max-width: 100%; max-height: 400px; border-radius: 8px; cursor: crosshair;';
-    canvasContainer.appendChild(canvas);
+    canvas.style.cssText = 'border-radius: 8px; cursor: crosshair; max-width: 100%;';
+
+    zoomWrap.appendChild(zoomToolbar);
+    zoomWrap.appendChild(canvas);
+    canvasContainer.appendChild(zoomWrap);
+
+
+
 
     const toolbar = document.createElement('div');
     toolbar.style.cssText = 'display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid #333; align-items: center; flex-wrap: wrap;';
@@ -307,23 +353,24 @@ class AnnotationPanel {
 
     const presetLabel = document.createElement('label');
     presetLabel.htmlFor = 'ytaitutor-transcript-priority';
-    presetLabel.style.cssText = 'color: #aaa; font-size: 12px;';
-    presetLabel.textContent = 'Preset:';
+    presetLabel.style.cssText = 'color: #aaa; font-size: 12px; font-weight: 500;';
+    presetLabel.textContent = 'Context:';
 
     const presetSelect = document.createElement('select');
     presetSelect.id = 'ytaitutor-transcript-priority';
-    presetSelect.style.cssText = 'flex: 1; min-width: 180px; padding: 6px; border-radius: 4px; background: #1a1a1a; color: #fff; border: 1px solid #444; font-size: 12px;';
+    presetSelect.style.cssText = 'flex: 1; min-width: 210px; padding: 6px; border-radius: 4px; background: #1a1a1a; color: #fff; border: 1px solid #444; font-size: 12px;';
     [
-      ['economical', 'Economical — short extract'],
-      ['standard', 'Standard — extract around the moment'],
-      ['complete', 'Complete — 120s / 60s'],
-      ['full-video', 'Full video (summary / wide context)'],
-      ['custom', 'Custom (sliders)']
+      ['standard', '🎯 Standard (60s before / 30s after)'],
+      ['economical', '⚡ Economical (30s before / 15s after)'],
+      ['complete', '🔍 Complete (120s before / 60s after)'],
+      ['global', '🌐 Full video transcript (entire video)'],
+      ['global-local', '🌐+🎯 Global transcript + Local focus'],
+      ['custom', '⚙️ Custom interval (sliders)']
     ].forEach(([value, label]) => {
       const opt = document.createElement('option');
       opt.value = value;
       opt.textContent = label;
-      if (value === 'standard') {
+      if (value === this.transcriptPriority) {
         opt.selected = true;
       }
       presetSelect.appendChild(opt);
@@ -331,38 +378,19 @@ class AnnotationPanel {
 
     const tokenEstimate = document.createElement('span');
     tokenEstimate.id = 'ytaitutor-token-estimate';
-    tokenEstimate.style.cssText = 'font-size: 11px; color: #90caf9; background: #1a1a2a; border: 1px solid #333; border-radius: 4px; padding: 4px 8px;';
+    tokenEstimate.style.cssText = 'font-size: 11px; color: #90caf9; background: #1a1a2a; border: 1px solid #333; border-radius: 4px; padding: 4px 8px; white-space: nowrap;';
     tokenEstimate.textContent = '— tokens';
 
     presetRow.appendChild(presetLabel);
     presetRow.appendChild(presetSelect);
     presetRow.appendChild(tokenEstimate);
 
-    const transcriptModeWrap = document.createElement('div');
-    transcriptModeWrap.style.cssText = 'display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 12px; margin-bottom: 8px; flex-wrap: wrap;';
-    const transcriptModeLabel = document.createElement('label');
-    transcriptModeLabel.textContent = 'Transcript context:';
-    const transcriptModeSelect = document.createElement('select');
-    transcriptModeSelect.id = 'ytaitutor-transcript-mode';
-    transcriptModeSelect.style.cssText = 'padding: 6px 8px; border-radius: 4px; background: #1a1a1a; color: #fff; border: 1px solid #444; font-size: 12px;';
-    [
-      ['local', 'Local extract only'],
-      ['global', 'Full video transcript'],
-      ['global-local', 'Global + local context']
-    ].forEach(([value, label]) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      if (value === 'local') {
-        opt.selected = true;
-      }
-      transcriptModeSelect.appendChild(opt);
-    });
-    transcriptModeWrap.appendChild(transcriptModeLabel);
-    transcriptModeWrap.appendChild(transcriptModeSelect);
-
     const sliderRow = document.createElement('div');
+    sliderRow.id = 'ytaitutor-slider-row';
     sliderRow.style.cssText = 'display: flex; gap: 16px; align-items: center; flex-wrap: wrap; color: #aaa; font-size: 12px; margin-bottom: 8px;';
+    if (this.transcriptPriority === 'global') {
+      sliderRow.style.display = 'none';
+    }
 
     const beforeWrap = document.createElement('div');
     const beforeSlider = document.createElement('input');
@@ -370,11 +398,11 @@ class AnnotationPanel {
     beforeSlider.id = 'ytaitutor-before';
     beforeSlider.min = '5';
     beforeSlider.max = '120';
-    beforeSlider.value = '60';
+    beforeSlider.value = String(this.beforeSec);
     beforeSlider.style.width = '90px';
     const beforeVal = document.createElement('span');
     beforeVal.id = 'before-val';
-    beforeVal.textContent = '60';
+    beforeVal.textContent = String(this.beforeSec);
     beforeWrap.appendChild(document.createTextNode('Interval: '));
     beforeWrap.appendChild(beforeSlider);
     beforeWrap.appendChild(beforeVal);
@@ -386,11 +414,11 @@ class AnnotationPanel {
     afterSlider.id = 'ytaitutor-after';
     afterSlider.min = '5';
     afterSlider.max = '120';
-    afterSlider.value = '30';
+    afterSlider.value = String(this.afterSec);
     afterSlider.style.width = '90px';
     const afterVal = document.createElement('span');
     afterVal.id = 'after-val';
-    afterVal.textContent = '30';
+    afterVal.textContent = String(this.afterSec);
     afterWrap.appendChild(afterSlider);
     afterWrap.appendChild(afterVal);
     afterWrap.appendChild(document.createTextNode('s after'));
@@ -410,7 +438,6 @@ class AnnotationPanel {
 
     contextSection.appendChild(contextTitle);
     contextSection.appendChild(presetRow);
-    contextSection.appendChild(transcriptModeWrap);
     contextSection.appendChild(sliderRow);
     contextSection.appendChild(previewBox);
 
@@ -502,7 +529,53 @@ class AnnotationPanel {
     this.editor = new AnnotationEditor(canvas);
     this.selectFrame(1);
 
+    // Zoom implementation: redraw canvas at a new display scale (canvas internal mapping is handled by editor)
+    // We change only the CSS size and canvas intrinsic size by triggering a re-load redraw.
+    const zoom = {
+      value: 1,
+      min: 0.5,
+      max: 3,
+      step: 0.1,
+      apply: () => {
+        zoomLabel.textContent = `${Math.round(zoom.value * 100)}%`;
+        // Trigger resize by re-loading the current image with the same annotations.
+        const frame = this.frames?.[this.selectedFrameIndex];
+        if (!frame?.dataUrl) return;
+        const annotations = this.frameAnnotations?.[this.selectedFrameIndex] || [];
+        // editor.loadImage will apply its own max width rule; we temporarily override by CSS sizing via scale factor.
+        // To keep it deterministic, we set an attribute and let editor read it.
+        canvas.dataset.zoom = String(zoom.value);
+        this.editor.loadImage(frame.dataUrl, annotations);
+      }
+    };
+
+    zoomOutBtn.addEventListener('click', () => {
+      zoom.value = Math.max(zoom.min, Math.round((zoom.value - zoom.step) * 10) / 10);
+      zoom.apply();
+    });
+    zoomInBtn.addEventListener('click', () => {
+      zoom.value = Math.min(zoom.max, Math.round((zoom.value + zoom.step) * 10) / 10);
+      zoom.apply();
+    });
+    zoomResetBtn.addEventListener('click', () => {
+      zoom.value = 1;
+      zoom.apply();
+    });
+
+    // Wheel zoom
+    canvasContainer.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return; // avoid breaking normal scrolling
+      e.preventDefault();
+      const delta = -Math.sign(e.deltaY);
+      if (delta > 0) zoom.value = Math.min(zoom.max, Math.round((zoom.value + zoom.step) * 10) / 10);
+      else zoom.value = Math.max(zoom.min, Math.round((zoom.value - zoom.step) * 10) / 10);
+      zoom.apply();
+    }, { passive: false });
+
+    zoom.apply();
+
     closeBtn.addEventListener('click', () => this.close());
+
     resetBtn.addEventListener('click', () => this.reset());
     clearBtn.addEventListener('click', () => {
       this.editor.clear();
@@ -542,6 +615,7 @@ class AnnotationPanel {
       this.beforeSec = parseInt(e.target.value, 10);
       beforeVal.textContent = String(this.beforeSec);
       this.transcriptPriority = 'custom';
+      this.transcriptMode = 'local';
       presetSelect.value = 'custom';
       this.scheduleTranscriptPreview();
     });
@@ -550,42 +624,25 @@ class AnnotationPanel {
       this.afterSec = parseInt(e.target.value, 10);
       afterVal.textContent = String(this.afterSec);
       this.transcriptPriority = 'custom';
+      this.transcriptMode = 'local';
       presetSelect.value = 'custom';
       this.scheduleTranscriptPreview();
     });
 
     presetSelect.addEventListener('change', (e) => {
-      if (e.target.value === 'custom') {
+      const val = e.target.value;
+      if (val === 'custom') {
+        this.transcriptPriority = 'custom';
+        this.transcriptMode = 'local';
+        sliderRow.style.display = 'flex';
+        this.updateTranscriptPreview();
         return;
       }
-      this.applyTranscriptPreset(e.target.value);
-      beforeSlider.value = String(this.beforeSec);
-      afterSlider.value = String(this.afterSec);
-      beforeVal.textContent = String(this.beforeSec);
-      afterVal.textContent = String(this.afterSec);
-      this.updateTranscriptPreview();
-    });
-
-    transcriptModeSelect.addEventListener('change', (e) => {
-      const mode = e.target.value;
-      this.transcriptMode = mode;
-      if (mode === 'global') {
-        this.transcriptPreferFull = true;
-        this.transcriptPriority = 'full-video';
-        presetSelect.value = 'full-video';
-      } else if (mode === 'global-local') {
-        this.transcriptPreferFull = true;
-        this.transcriptPriority = 'complete';
-        presetSelect.value = 'complete';
-        beforeSlider.value = String(this.beforeSec);
-        afterSlider.value = String(this.afterSec);
-        beforeVal.textContent = String(this.beforeSec);
-        afterVal.textContent = String(this.afterSec);
+      this.applyTranscriptPreset(val);
+      if (val === 'global') {
+        sliderRow.style.display = 'none';
       } else {
-        this.transcriptPreferFull = false;
-        this.transcriptPriority = 'standard';
-        presetSelect.value = 'standard';
-        this.applyTranscriptPreset('standard');
+        sliderRow.style.display = 'flex';
         beforeSlider.value = String(this.beforeSec);
         afterSlider.value = String(this.afterSec);
         beforeVal.textContent = String(this.beforeSec);
@@ -607,6 +664,7 @@ class AnnotationPanel {
     recaptureBtn.addEventListener('click', () => this.recaptureFrames());
     frameSendSelect.addEventListener('change', (e) => {
       this.frameSendMode = e.target.value;
+      this.updateTranscriptPreview();
     });
 
     overlay.addEventListener('keydown', (e) => {
@@ -729,6 +787,7 @@ class AnnotationPanel {
     this.beforeSec = preset.beforeSec;
     this.afterSec = preset.afterSec;
     this.transcriptPreferFull = preset.preferFull;
+    this.transcriptMode = preset.mode || 'local';
   }
 
   /**
@@ -837,29 +896,28 @@ class AnnotationPanel {
       const frameEst = result?.frameEstimate;
 
       // frameEstimate: { imageCount, imageTokens, tokensByMode?: {local, global} }
-      const imageCount = frameEst?.imageCount ?? 0;
-      const imageTokens = frameEst?.imageTokens ?? 0;
+      const imageCount = frameEst?.imageCount
+        ?? (this.frameSendMode === 'none' ? 0 : this.frameSendMode === 't0-only' ? 1 : (this.frames?.length || 3));
+      const imageTokens = frameEst?.imageTokens ?? (imageCount * 900);
 
       const fullSuffix = result?.isFull ? ' — full' : '';
 
-      let transcriptLabel = 'local extract';
       let transcriptTokens = localTokens;
       let transcriptDetail = `local (~${localTokens} tok)`;
 
       if (this.transcriptMode === 'global') {
-        transcriptLabel = 'global transcript';
         transcriptTokens = globalTokens;
         transcriptDetail = `global (~${globalTokens} tok)`;
       } else if (this.transcriptMode === 'global-local') {
-        transcriptLabel = 'local + global';
         transcriptTokens = localTokens + globalTokens + 200;
         transcriptDetail = `local (~${localTokens} tok) + global (~${globalTokens} tok)`;
       }
 
       const totalTokens = transcriptTokens + imageTokens;
+      const imageLabel = imageCount === 1 ? '1 image' : `${imageCount} images`;
 
       if (tokenEl) {
-        tokenEl.textContent = `~${totalTokens} estimated tokens (${transcriptDetail}, ${imageCount} image${imageCount > 1 ? 's' : ''}, ${charCount} chars${fullSuffix})`;
+        tokenEl.textContent = `~${totalTokens} estimated tokens (${transcriptDetail}, ${imageLabel}, ${charCount} chars${fullSuffix})`;
         tokenEl.style.color = result?.isFull ? '#81c784' : '#90caf9';
         tokenEl.style.background = result?.isFull ? '#1b3a1b' : '#1a1a2a';
       }
@@ -1016,10 +1074,18 @@ class AnnotationPanel {
  * @param {object|null} transcriptData
  * @param {HTMLVideoElement|null} videoElement
  */
-function openAnnotationPanel(frames, videoId, videoTitle, currentTime, transcriptData = null, videoElement = null) {
+async function openAnnotationPanel(frames, videoId, videoTitle, currentTime, transcriptData = null, videoElement = null) {
   const existing = document.getElementById('ytaitutor-annotation-overlay');
   if (existing) {
     existing.remove();
   }
-  new AnnotationPanel(frames, videoId, videoTitle, currentTime, transcriptData, videoElement);
+  let userDefaults = null;
+  try {
+    const stored = await chrome.storage.local.get('defaultPreferences');
+    userDefaults = stored?.defaultPreferences || null;
+  } catch {
+    /* ignore */
+  }
+  new AnnotationPanel(frames, videoId, videoTitle, currentTime, transcriptData, videoElement, userDefaults);
 }
+

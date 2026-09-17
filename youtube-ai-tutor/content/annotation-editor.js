@@ -73,6 +73,11 @@ class AnnotationEditor {
           scale = maxDisplayWidth / displayWidth;
         }
 
+        // Optional zoom factor injected by annotation-panel
+        const zoom = Number.parseFloat(this.canvas?.dataset?.zoom || '1');
+        const zoomSafe = Number.isFinite(zoom) ? Math.max(0.1, zoom) : 1;
+        scale *= zoomSafe;
+
         this.canvas.width = displayWidth * scale * dpr;
         this.canvas.height = displayHeight * scale * dpr;
         this.canvas.style.width = `${displayWidth * scale}px`;
@@ -343,6 +348,38 @@ class AnnotationEditor {
       ctx.fillRect(ann.start.x - 4, ann.start.y - size, metrics.width + 8, boxHeight);
       ctx.fillStyle = color;
       ctx.fillText(ann.text, ann.start.x, ann.start.y);
+    } else if (ann.type === 'highlight') {
+      // { type:'highlight', rect:[x,y,w,h] } with ratios
+      const rect = Array.isArray(ann.rect) ? ann.rect : ann.rect ? [ann.rect.x, ann.rect.y, ann.rect.w, ann.rect.h] : null;
+      if (rect) {
+        const [x, y, w, h] = rect;
+        ctx.fillStyle = ann.color || 'rgba(255, 255, 0, 0.3)';
+        ctx.fillRect(x, y, w, h);
+      }
+    } else if (ann.type === 'box') {
+      // { type:'box', x,y,width,height } with ratios
+      const x = Number.isFinite(ann.x) ? ann.x : (Array.isArray(ann.rect) ? ann.rect[0] : 0);
+      const y = Number.isFinite(ann.y) ? ann.y : (Array.isArray(ann.rect) ? ann.rect[1] : 0);
+      const w = Number.isFinite(ann.width) ? ann.width : (Array.isArray(ann.rect) ? ann.rect[2] : 0);
+      const h = Number.isFinite(ann.height) ? ann.height : (Array.isArray(ann.rect) ? ann.rect[3] : 0);
+      ctx.strokeStyle = ann.color || '#FF4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+    } else if (ann.type === 'badge') {
+      // { type:'badge', position:[x,y], number?: } with ratios
+      const pos = Array.isArray(ann.position) ? ann.position : null;
+      if (pos) {
+        const [bx, by] = pos;
+        ctx.beginPath();
+        ctx.arc(bx, by, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = ann.color || '#FF4444';
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(ann.number || 1), bx, by);
+      }
     }
   }
 

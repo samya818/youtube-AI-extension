@@ -17,19 +17,17 @@ const TRANSCRIPT_EXCERPT_AFTER_SEC = 60;
 const TRANSCRIPT_PRIORITY_PRESETS = {
   economical: { beforeSec: 30, afterSec: 15, preferFull: false },
   standard: { beforeSec: TRANSCRIPT_DEFAULT_BEFORE_SEC, afterSec: TRANSCRIPT_DEFAULT_AFTER_SEC, preferFull: false },
-  complete: { beforeSec: TRANSCRIPT_EXCERPT_BEFORE_SEC, afterSec: TRANSCRIPT_EXCERPT_AFTER_SEC, preferFull: true }
+  complete: { beforeSec: TRANSCRIPT_EXCERPT_BEFORE_SEC, afterSec: TRANSCRIPT_EXCERPT_AFTER_SEC, preferFull: true },
+  global: { beforeSec: 60, afterSec: 30, preferFull: true },
+  'global-local': { beforeSec: 60, afterSec: 30, preferFull: true }
 };
 
 /** @type {Record<string, string>} Maps retired model IDs to current equivalents. */
 const DEPRECATED_GEMINI_MODELS = {
-  'gemini-1.5-flash': 'gemini-2.5-flash',
-  'gemini-1.5-pro': 'gemini-2.5-pro',
-  'gemini-1.5-flash-001': 'gemini-2.5-flash',
-  'gemini-1.5-pro-001': 'gemini-2.5-pro',
-  'gemini-2.0-flash': 'gemini-2.5-flash',
-  'gemini-2.0-flash-001': 'gemini-2.5-flash',
-  'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
-  'gemini-2.0-flash-lite-001': 'gemini-2.5-flash-lite'
+  'gemini-1.5-flash-001': 'gemini-1.5-flash',
+  'gemini-1.5-pro-001': 'gemini-1.5-pro',
+  'gemini-2.0-flash-001': 'gemini-2.0-flash',
+  'gemini-2.0-flash-lite-001': 'gemini-2.0-flash-lite'
 };
 
 /**
@@ -48,7 +46,7 @@ const API_PROVIDERS = {
   gemini: {
     label: 'Gemini (Google)',
     defaultModel: 'gemini-2.5-flash',
-    models: ['gemini-2.5-flash', 'gemini-2.5-flash-image', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-3.5-flash']
+    models: ['gemini-3.6-flash', 'gemini-3.6-pro', 'gemini-3.6', 'gemini-2.5-flash', 'gemini-2.5-flash-image', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
   },
   openai: {
     label: 'OpenAI',
@@ -158,19 +156,22 @@ async function saveProviderSettings(provider, model) {
   if (!API_PROVIDERS[provider]) {
     provider = 'gemini';
   }
+  // Normalize: strip "models/" prefix (Gemini API sometimes returns it)
+  const normalizedModel = model ? model.replace(/^models\//, '') : null;
+
   const stored = await getStoredApiKeys();
   const newApiKeys = { ...stored.apiKeys };
 
   if (newApiKeys[provider]) {
     newApiKeys[provider] = {
       ...newApiKeys[provider],
-      model: model || newApiKeys[provider].model || getProviderDefaultModel(provider),
+      model: normalizedModel || newApiKeys[provider].model || getProviderDefaultModel(provider),
       active: true
     };
   } else {
     newApiKeys[provider] = {
       key: null,
-      model: model || getProviderDefaultModel(provider),
+      model: normalizedModel || getProviderDefaultModel(provider),
       active: true
     };
   }
@@ -1175,17 +1176,9 @@ Si l'utilisateur demande si tu as la transcription ou le lien, réponds selon le
 Si la transcription est absente, base-toi sur les images et le titre. ${levels[level] || levels.Licence}
 
 Réponds de manière claire et structurée avec du Markdown : titres (##), listes à puces, gras pour les points clés, blocs de code si nécessaire.
-Pour les formules mathématiques, utilise LaTeX avec $...$ (inline) ou $$...$$ (bloc).
-
-Si pertinent, tu peux demander un overlay visuel en répondant au format JSON :
-{
-  "answer": "ton explication textuelle",
-  "needs_overlay": false,
-  "overlay_elements": []
+Pour les formules mathématiques, utilise LaTeX avec $...$ (inline) ou $$...$$ (bloc).`;
 }
 
-Les coordonnées overlay sont en ratio (0-1) par rapport à la taille de la vidéo.`;
-}
 
 /**
  * Builds the video context block sent to Gemini alongside the image.
@@ -1410,7 +1403,6 @@ function processLLMTextResponse(text) {
     return {
       success: true,
       text: parsed.answer,
-      overlay: parsed.needs_overlay ? parsed.overlay_elements : null,
       raw: text
     };
   }
@@ -1421,7 +1413,6 @@ function processLLMTextResponse(text) {
     return {
       success: true,
       text: partial.answer,
-      overlay: null,
       raw: text
     };
   }
@@ -2260,7 +2251,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
               },
               conversation: [
                 { role: 'user', content: question, timestamp: new Date().toISOString() },
-                { role: 'assistant', content: result.text, overlay: result.overlay || null, timestamp: new Date().toISOString() }
+                { role: 'assistant', content: result.text, timestamp: new Date().toISOString() }
               ],
               bookmarked: false,
               tags: [],
@@ -2533,8 +2524,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           } else if (frameSendMode === 't0-only') {
             imageCount = 1;
           } else {
-            // contextual / autre => 3 frames au max
-            imageCount = 3;
+            // contextual / autre => frames count if provided, default 3
+            imageCount = typeof request.frameCount === 'number' && request.frameCount >= 0 ? request.frameCount : 3;
           }
 
           // Heuristique identique à l'ancienne UI: 900 tok par image.
@@ -2687,7 +2678,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           const scriptFiles = [
             'lib/utils.js',
             'content/capture.js',
-            'content/overlay.js',
             'content/annotation-editor.js',
             'content/annotation-panel.js',
             'content/content.js'

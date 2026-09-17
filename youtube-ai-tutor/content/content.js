@@ -21,7 +21,6 @@
   let videoElement = null;
   let playerContainer = null;
   let floatingButton = null;
-  let overlayManager = null;
   let currentVideoId = null;
 
   /**
@@ -89,10 +88,6 @@
       }
 
       injectFloatingButton();
-
-      if (overlayManager) {
-        overlayManager.setPlayer(player);
-      }
 
       return true;
     } catch (err) {
@@ -305,7 +300,7 @@
   /**
    * Pauses the video, captures T-6/T0/T+6, and opens the annotation panel.
    */
-  async function triggerCapture() {
+  async function triggerCapture(override = {}) {
     try {
       detectVideoPlayer();
 
@@ -331,7 +326,14 @@
       const transcriptData = await ensureTranscriptLoaded();
       const { frames } = await CaptureEngine.captureMultiFrame(videoElement, currentTime);
 
-      openAnnotationPanel(frames, videoId, videoTitle, currentTime, transcriptData, videoElement);
+      openAnnotationPanel(
+        frames,
+        videoId,
+        videoTitle,
+        currentTime,
+        transcriptData,
+        videoElement
+      );
     } catch (err) {
       console.error('[YTAITutor] Erreur capture:', err);
     }
@@ -341,22 +343,6 @@
     (async () => {
       try {
         switch (request.action) {
-          case 'showOverlay':
-            if (!overlayManager) {
-              overlayManager = new VideoOverlay();
-            }
-            overlayManager.setPlayer(playerContainer);
-            overlayManager.setElements(request.elements);
-            sendResponse({ success: true });
-            break;
-
-          case 'clearOverlay':
-            if (overlayManager) {
-              overlayManager.clear();
-            }
-            sendResponse({ success: true });
-            break;
-
           case 'captureNow': {
             const capture = await captureAndStore(request.pauseVideo !== false);
             sendResponse({ success: true, capture });
@@ -396,13 +382,5 @@
 
     return true;
   });
-
-  if (videoElement) {
-    videoElement.addEventListener('play', () => {
-      if (overlayManager) {
-        overlayManager.clear();
-      }
-    });
-  }
 
 })();
