@@ -54,10 +54,15 @@
       <!-- Hidden file input for images sent to the LLM model -->
       <input type="file" id="llm-image-file-input" accept="image/*" style="display:none;">
       <div class="chat-action-bar">
-        <button id="pin-screenshot-btn" class="secondary-btn" title="Épingler cette capture dans le fil pour révision / PDF (NON envoyé à l'IA, 0 token)">📌 Épingler capture</button>
-        <button id="attach-photo-btn" class="secondary-btn" title="Ajouter une photo de votre PC dans le fil pour révision / PDF (NON envoyée à l'IA, 0 token)">🖼 Photo mémo</button>
-        <button id="export-chat-md-btn" class="secondary-btn" title="Télécharger la discussion au format Markdown">⬇ Export MD</button>
-        <button id="export-chat-pdf-btn" class="secondary-btn" title="Ouvrir la vue d'impression (sauvegarder en PDF)">🖨 Export PDF</button>
+        <button id="pin-screenshot-btn" class="secondary-btn chat-action-btn" title="Épingler cette capture dans le fil pour révision / PDF (NON envoyé à l'IA, 0 token)">📌 Épingler capture</button>
+        <button id="attach-photo-btn" class="secondary-btn chat-action-btn" title="Ajouter une photo de votre PC dans le fil pour révision / PDF (NON envoyée à l'IA, 0 token)">🖼 Photo mémo</button>
+        <button id="export-chat-md-btn" class="secondary-btn chat-action-btn" title="Télécharger la discussion au format Markdown">⬇ Export MD</button>
+        <button id="export-chat-pdf-btn" class="secondary-btn chat-action-btn" title="Ouvrir la vue d'impression (sauvegarder en PDF)">🖨 Export PDF</button>
+      </div>
+      <div id="export-support-banner" class="export-support-banner hidden" role="note" hidden>
+        <span class="export-support-text">Yay, notes saved! 🎀✨ If this helped you, maybe buy me a little coffee? ☕💕</span>
+        <a id="export-support-kofi-link" href="https://ko-fi.com/samya818" class="kofi-link-btn" target="_blank" rel="noopener">☕ Buy me a coffee 🎀</a>
+        <button id="export-support-dismiss" class="export-support-dismiss" type="button" title="Dismiss">✕</button>
       </div>
       <!-- Hidden file input for disk photo memo (display only, not sent to AI) -->
       <input type="file" id="chat-photo-file-input" accept="image/*" style="display:none;">
@@ -152,11 +157,18 @@
       </div>
     </section>
     
-    <section class="about-section" style="margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #cbd5e1; text-align: center; line-height: 1.6; flex-shrink: 0;">
-      <p style="margin-bottom: 4px;">Created by <strong>Samya Loukili</strong> — Send me a nice message if u find it useful 🎀</p>
+    <section class="settings-inline support-section">
+      <h4>Spoil me a little? 🎀</h4>
+      <p class="support-blurb">If ClarifyTube makes studying easier for you, you can buy me a coffee~ totally optional, but it would honestly make my day! ☕💕✨</p>
+      <a id="settings-kofi-link" href="https://ko-fi.com/samya818" class="kofi-link-btn kofi-link-btn--wide" target="_blank" rel="noopener">☕ Buy me a coffee on Ko-fi 🎀</a>
+    </section>
+
+    <section class="about-section" style="margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #cbd5e1; text-align: center; line-height: 1.6;">
+      <p class="student-tagline">Made by a student, for students 📚✨</p>
+      <p style="margin-bottom: 4px;">Created by <strong>Samya Loukili</strong> 🎀</p>
       <p>
-        <a href="https://github.com/samya818" target="_blank" style="color: #8ab4ff; text-decoration: none; margin-right: 8px;">GitHub</a> • 
-        <a href="mailto:samyaloukili2@gmail.com" style="color: #8ab4ff; text-decoration: none; margin-left: 8px;">Contact & Feedback</a>
+        <a href="https://github.com/samya818" target="_blank" class="settings-external-link" style="margin-right: 8px;">GitHub</a> •
+        <a href="mailto:samyaloukili2@gmail.com" class="settings-external-link" style="margin-left: 8px;">Contact & Feedback</a>
       </p>
     </section>
   </div>

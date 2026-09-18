@@ -21,6 +21,8 @@
    */
   let chatLog = [];
 
+  const KOFI_URL = 'https://ko-fi.com/samya818';
+
   /**
    * Image file from user's PC attached to be sent to the AI model with the next question.
    * Format: { dataUrl: string, name: string } | null
@@ -993,6 +995,53 @@
       return msgs;
     }
 
+    function openExternalUrl(url) {
+      if (!url) return;
+      chrome.tabs.create({ url });
+    }
+
+    function showExportSupportBanner() {
+      const banner = document.getElementById('export-support-banner');
+      if (!banner) return;
+      banner.classList.remove('hidden');
+      banner.removeAttribute('hidden');
+    }
+
+    function hideExportSupportBanner() {
+      const banner = document.getElementById('export-support-banner');
+      if (!banner) return;
+      banner.classList.add('hidden');
+      banner.setAttribute('hidden', '');
+    }
+
+    function setupSupportLinks() {
+      hideExportSupportBanner();
+
+      document.getElementById('export-support-dismiss')?.addEventListener('click', () => {
+        hideExportSupportBanner();
+      });
+
+      document.getElementById('export-support-kofi-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openExternalUrl(KOFI_URL);
+      });
+
+      document.getElementById('settings-kofi-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openExternalUrl(KOFI_URL);
+      });
+
+      document.getElementById('settings-panel')?.addEventListener('click', (e) => {
+        const link = e.target.closest('a.settings-external-link, a[href^="mailto:"]');
+        if (!link?.href) return;
+        if (link.href.startsWith('mailto:')) return;
+        e.preventDefault();
+        openExternalUrl(link.href);
+      });
+    }
+
+    setupSupportLinks();
+
     /** Download current chat as a .md file. */
     function exportChatAsMarkdown() {
       const msgs = collectChatMessages();
@@ -1040,6 +1089,8 @@
       a.download = `chat-export-${Date.now()}.md`;
       a.click();
       URL.revokeObjectURL(url);
+      showExportSupportBanner();
+      showToast('Chat exported!');
     }
 
     /** Open a print-friendly page with the current chat (→ Save as PDF). */
@@ -1059,6 +1110,8 @@
       });
 
       chrome.tabs.create({ url: chrome.runtime.getURL('popup/pdf-print-chat.html') });
+      showExportSupportBanner();
+      showToast('Print view opened — save as PDF from your browser.');
     }
 
     document.getElementById('export-chat-md-btn')?.addEventListener('click', () => {
